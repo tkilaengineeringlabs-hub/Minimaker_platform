@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Jersey 10";
+  src: url("/fonts/jersey-10.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.maker-landing :is(h1, h2, h3) {
+  font-family: "Jersey 10", "Courier New", monospace;
+  font-weight: 400;
+}
+
 @layer components {
   .maker-primary-button {
     @apply inline-flex items-center justify-center rounded-xl border-2 border-b-[7px] border-[#071014] bg-[#08d9d6] px-7 py-4 text-center text-sm font-black uppercase tracking-[0.04em] text-[#071014] transition duration-150 hover:-translate-y-0.5 hover:bg-[#35f0ec] active:translate-y-[3px] active:border-b-2;

@@ -2,15 +2,17 @@ import { type NextPage } from "next";
 import Link from "next/link";
 import React, { useState } from "react";
 import { LanguageHeader } from "~/components/LanguageHeader";
+import { MakerWorkbench } from "~/components/MakerWorkbench";
+import { BrandLogo } from "~/components/BrandLogo";
 import { LoginScreen, useLoginScreen } from "~/components/LoginScreen";
 
 type ModalState = "HIDDEN" | "SCHOOLS";
 type ProjectType = "rover" | "game" | "invent" | "circuit";
 
 const displayFont =
-  "'Courier New', 'Monaco', 'Menlo', ui-monospace, SFMono-Regular, monospace";
+  "'Jersey 10', 'Courier New', monospace";
 const uiFont =
-  "'Arial Rounded MT Bold', 'Trebuchet MS', var(--font-sans), system-ui, sans-serif";
+  "Arial, Helvetica, system-ui, sans-serif";
 
 const projectCards: Array<{
   type: ProjectType;
@@ -50,7 +52,7 @@ const Home: NextPage = () => {
 
   return (
     <main
-      className="min-h-screen overflow-x-hidden bg-[#f7faf8] text-[#071014]"
+      className="maker-landing min-h-screen overflow-x-hidden bg-[#f7faf8] text-[#071014]"
       style={{ fontFamily: uiFont }}
     >
       <LanguageHeader
@@ -63,14 +65,7 @@ const Home: NextPage = () => {
 
         <div className="relative mx-auto grid min-h-[calc(100vh-118px)] max-w-7xl items-center gap-8 lg:grid-cols-[0.82fr_1.18fr]">
           <div className="relative z-10 max-w-[600px] pb-4 lg:-translate-y-5">
-            <p
-              className="mb-5 inline-flex border-2 border-[#071014] bg-white px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#00838f] shadow-[4px_4px_0_#071014]"
-              style={{ fontFamily: displayFont }}
-            >
-              MINI MAKER LABS
-            </p>
-
-            <h1 className="maker-hero-title text-[clamp(3.8rem,9vw,8.1rem)] font-black uppercase leading-[0.82] tracking-normal text-[#071014]">
+            <h1 className="maker-hero-title text-[clamp(3.5rem,8.5vw,7.5rem)] font-normal uppercase leading-[0.92] tracking-normal text-[#071014]">
               <span className="block">Construye</span>
               <span className="ml-5 block text-[0.68em] text-[#113240] sm:ml-12">
                 algo
@@ -100,8 +95,8 @@ const Home: NextPage = () => {
             </div>
           </div>
 
-          <div className="relative min-h-[430px] lg:min-h-[620px]">
-            <RoverBlueprint />
+          <div className="relative flex items-center justify-center lg:min-h-[560px]">
+            <MakerWorkbench />
           </div>
         </div>
       </section>
@@ -171,9 +166,9 @@ const Home: NextPage = () => {
         </div>
       </section>
 
-      <footer className="border-t-2 border-[#071014] bg-[#071014] px-4 py-7 text-white sm:px-6 lg:px-8">
+      <footer className="border-t-2 border-[#071014] bg-[#e8fffd] px-4 py-7 text-[#071014] sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 text-sm font-black uppercase sm:flex-row sm:items-center sm:justify-between">
-          <span>Mini Maker Labs</span>
+          <BrandLogo className="w-[152px] sm:w-[176px]" />
           <span>Construir. Inventar. Probar. Volver a intentar.</span>
         </div>
       </footer>
@@ -195,92 +190,6 @@ const Home: NextPage = () => {
 };
 
 export default Home;
-
-const RoverBlueprint = () => (
-  <div className="absolute inset-0">
-    <TechnicalLabel className="left-[45%] top-[3%]" text="SENSOR" />
-    <TechnicalLabel className="bottom-[22%] left-[3%]" text="MOTOR" />
-    <TechnicalLabel className="right-[2%] top-[31%]" text="MICRO:BIT" />
-    <TechnicalLabel className="bottom-[8%] right-[27%]" text="LED" />
-
-    <svg
-      className="absolute inset-0 h-full w-full fill-none stroke-[#071014]"
-      viewBox="0 0 720 620"
-      aria-hidden="true"
-    >
-      <path d="M392 70 C378 128 357 168 326 210" strokeWidth="3" />
-      <path d="M129 438 C205 395 264 351 316 302" strokeWidth="3" />
-      <path d="M610 270 C542 280 480 297 421 328" strokeWidth="3" />
-      <path d="M480 544 C450 494 430 447 410 386" strokeWidth="3" />
-      <path
-        d="M82 160 H230 V112"
-        strokeDasharray="9 9"
-        strokeWidth="2"
-        opacity="0.55"
-      />
-      <path
-        d="M555 122 H644 V214"
-        strokeDasharray="9 9"
-        strokeWidth="2"
-        opacity="0.55"
-      />
-    </svg>
-
-    <div className="absolute left-[8%] top-[19%] h-5 w-5 rounded-full border-[3px] border-[#071014] bg-[#d7d1c2] before:absolute before:left-1 before:right-1 before:top-1/2 before:h-[3px] before:-translate-y-1/2 before:rotate-[-25deg] before:bg-[#071014]" />
-    <div className="absolute right-[15%] top-[14%] h-5 w-5 rounded-full border-[3px] border-[#071014] bg-[#d7d1c2] before:absolute before:left-1 before:right-1 before:top-1/2 before:h-[3px] before:-translate-y-1/2 before:rotate-[25deg] before:bg-[#071014]" />
-    <div className="absolute right-[11%] bottom-[21%] h-5 w-5 rounded-full border-[3px] border-[#071014] bg-[#d7d1c2] before:absolute before:left-1 before:right-1 before:top-1/2 before:h-[3px] before:-translate-y-1/2 before:rotate-[-20deg] before:bg-[#071014]" />
-
-    <div className="absolute left-1/2 top-1/2 h-[310px] w-[min(560px,92vw)] -translate-x-1/2 -translate-y-1/2 rotate-[-4deg]">
-      <div className="absolute inset-x-[70px] bottom-0 h-12 rounded-[50%] bg-[#071014]/20" />
-      <div className="absolute left-[70px] right-[70px] top-[92px] h-[174px] rounded-[32px] border-[5px] border-[#071014] bg-[#08d9d6] shadow-[13px_15px_0_#071014]">
-        <div className="absolute left-10 top-9 h-[88px] w-[142px] rounded-xl border-4 border-[#071014] bg-[#145847]">
-          <div className="absolute left-9 top-6 h-9 w-14 border-[3px] border-white bg-[#071014]" />
-          <span className="absolute left-3 top-3 h-3 w-3 rounded-full border-2 border-[#071014] bg-[#ffe45c]" />
-          <span className="absolute right-3 top-3 h-3 w-3 rounded-full border-2 border-[#071014] bg-[#ffe45c]" />
-          <span className="absolute bottom-3 left-3 h-3 w-3 rounded-full border-2 border-[#071014] bg-[#ffe45c]" />
-          <span className="absolute bottom-3 right-3 h-3 w-3 rounded-full border-2 border-[#071014] bg-[#ffe45c]" />
-        </div>
-
-        <div
-          className="absolute right-10 top-11 grid h-[62px] w-[96px] place-items-center rounded-xl border-4 border-[#071014] bg-[#ffe45c] text-xs font-black"
-          style={{ fontFamily: displayFont }}
-        >
-          9V
-        </div>
-
-        <div className="absolute left-[178px] top-9 h-[64px] w-[150px] rotate-[8deg] rounded-t-full border-[5px] border-b-0 border-[#ff9f1c]" />
-        <div className="absolute left-[216px] top-[72px] h-[58px] w-[140px] rotate-[-8deg] rounded-t-full border-[5px] border-b-0 border-white" />
-        <div className="absolute bottom-6 left-1/2 h-7 w-7 -translate-x-1/2 rounded-full border-4 border-[#071014] bg-[#fbff75] shadow-[0_0_0_9px_rgba(255,228,92,0.45)]" />
-        <div className="absolute -bottom-5 left-[90px] right-[90px] h-8 rounded-full border-[5px] border-[#071014] bg-white" />
-      </div>
-
-      <div className="absolute left-1/2 top-7 flex -translate-x-1/2 gap-3 rounded-2xl border-[5px] border-[#071014] bg-white px-4 py-3">
-        <span className="h-8 w-8 rounded-full border-4 border-[#071014] bg-[radial-gradient(circle,#fff_0_25%,#071014_26%_54%,#08d9d6_55%)]" />
-        <span className="h-8 w-8 rounded-full border-4 border-[#071014] bg-[radial-gradient(circle,#fff_0_25%,#071014_26%_54%,#08d9d6_55%)]" />
-      </div>
-
-      <div className="absolute bottom-[20px] left-3 h-24 w-24 rounded-full border-[6px] border-[#071014] bg-[radial-gradient(circle,#fff_0_18%,#071014_19%_27%,#262626_28%)] shadow-[6px_7px_0_#071014]" />
-      <div className="absolute bottom-[20px] right-3 h-24 w-24 rounded-full border-[6px] border-[#071014] bg-[radial-gradient(circle,#fff_0_18%,#071014_19%_27%,#262626_28%)] shadow-[6px_7px_0_#071014]" />
-      <div className="absolute bottom-[113px] left-8 h-12 w-16 rounded-xl border-4 border-[#071014] bg-[#d7d1c2]" />
-      <div className="absolute bottom-[113px] right-8 h-12 w-16 rounded-xl border-4 border-[#071014] bg-[#d7d1c2]" />
-    </div>
-  </div>
-);
-
-const TechnicalLabel = ({
-  text,
-  className,
-}: {
-  text: string;
-  className: string;
-}) => (
-  <div
-    className={`absolute z-10 text-[11px] font-black uppercase tracking-[0.14em] text-[#071014] ${className}`}
-    style={{ fontFamily: displayFont }}
-  >
-    {text}
-  </div>
-);
 
 const ProjectBuildCard = ({
   type,

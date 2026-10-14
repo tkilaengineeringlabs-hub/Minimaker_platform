@@ -1,3 +1,4 @@
+import { useUnlockedKits } from "~/hooks/useUnlockedKits";
 import { type NextPage } from "next";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -20,7 +21,7 @@ import {
   getLearningPathById,
   type LearningPathId,
 } from "~/utils/learningPaths";
-import { getKitById, isKitUnlocked, readUnlockedKitIds } from "~/utils/kits";
+import { getKitById, isKitUnlocked } from "~/utils/kits";
 
 type TileStatus = "LOCKED" | "ACTIVE" | "COMPLETE";
 type MakerActivityType =
@@ -846,8 +847,7 @@ const getTopBarColors = (
 const Learn: NextPage = () => {
   const router = useRouter();
   const { loginScreenState, setLoginScreenState } = useLoginScreen();
-  const [unlockedKitIds, setUnlockedKitIds] = useState(readUnlockedKitIds);
-  const [unlockedKitIdsLoaded, setUnlockedKitIdsLoaded] = useState(false);
+  const { unlockedKitIds, unlockedKitIdsLoaded } = useUnlockedKits();
 
   const [scrollY, setScrollY] = useState(0);
   useEffect(() => {
@@ -856,11 +856,6 @@ const Learn: NextPage = () => {
     document.addEventListener("scroll", updateScrollY);
     return () => document.removeEventListener("scroll", updateScrollY);
   }, [scrollY]);
-
-  useEffect(() => {
-    setUnlockedKitIds(readUnlockedKitIds());
-    setUnlockedKitIdsLoaded(true);
-  }, []);
 
   const requestedPathId =
     typeof router.query.path === "string"

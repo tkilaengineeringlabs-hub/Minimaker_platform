@@ -1,3 +1,4 @@
+import { useUnlockedKits } from "~/hooks/useUnlockedKits";
 import type { NextPage } from "next";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
@@ -16,7 +17,7 @@ import {
   getLearningPathById,
   type LearningPathId,
 } from "~/utils/learningPaths";
-import { getKitById, isKitUnlocked, readUnlockedKitIds } from "~/utils/kits";
+import { getKitById, isKitUnlocked } from "~/utils/kits";
 import { saveLearningProgress } from "~/services/progressService";
 
 const makerLessonXp = 10;
@@ -85,6 +86,7 @@ const formatTime = (timeMs: number): string => {
 const Lesson: NextPage = () => {
   const router = useRouter();
   const pathId = getLessonPathId(router.query.path);
+  const { unlockedKitIds, unlockedKitIdsLoaded } = useUnlockedKits();
 
   const [lessonStep, setLessonStep] = useState(0);
   const [correctAnswerCount, setCorrectAnswerCount] = useState(0);
@@ -103,18 +105,18 @@ const Lesson: NextPage = () => {
   const [isStartingLesson, setIsStartingLesson] = useState(true);
 
   useEffect(() => {
-    if (!router.isReady) return;
+    if (!router.isReady || !unlockedKitIdsLoaded) return;
 
     const learningPath = getLearningPathById(pathId);
     const kit =
       learningPath !== undefined ? getKitById(learningPath.kitId) : undefined;
     const routeIsUnlocked =
-      kit !== undefined && isKitUnlocked(kit, readUnlockedKitIds());
+      kit !== undefined && isKitUnlocked(kit, unlockedKitIds);
 
     if (!routeIsUnlocked) {
       void router.replace(getLearnHref(defaultLearningPathId));
     }
-  }, [pathId, router]);
+  }, [pathId, router, unlockedKitIds, unlockedKitIdsLoaded]);
 
   const hearts =
     "fast-forward" in router.query &&
@@ -363,9 +365,7 @@ const ProgressBar = ({
                 ? "border-[#00acc1] bg-cyan-50 text-[#00838f]"
                 : "border-gray-200 bg-gray-50 text-gray-300",
             ].join(" ")}
-            aria-label={
-              charge <= hearts ? "Carga disponible" : "Carga usada"
-            }
+            aria-label={charge <= hearts ? "Carga disponible" : "Carga usada"}
           >
             ⚡
           </span>

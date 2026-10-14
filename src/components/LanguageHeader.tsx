@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { BrandLogo } from "~/components/BrandLogo";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -28,15 +28,11 @@ export const LanguageHeader = ({
       <div className="absolute inset-x-0 bottom-0 h-[3px] bg-[linear-gradient(90deg,#08d9d6_0_16%,transparent_16%_25%,#071014_25%_27%,transparent_27%_42%,#08d9d6_42%_59%,transparent_59%_78%,#071014_78%_80%,transparent_80%)]" />
       <div className="absolute inset-0 opacity-[0.22] [background-image:linear-gradient(90deg,rgba(8,217,214,0.34)_1px,transparent_1px),linear-gradient(rgba(8,217,214,0.34)_1px,transparent_1px)] [background-size:22px_22px]" />
 
-      <div className="relative mx-auto grid min-h-[86px] max-w-7xl grid-cols-[1fr_auto] items-center gap-4 px-4 sm:px-6 lg:grid-cols-[300px_1fr_auto] lg:px-8">
+      <div className="relative mx-auto grid min-h-[86px] max-w-7xl grid-cols-[1fr_auto] items-center gap-4 px-4 sm:px-6 md:grid-cols-[auto_1fr_auto] lg:px-8">
         <Link href="/" className="flex items-center">
-          <Image
-            src="/logotipo mini maker labs blanco.png"
-            alt="Mini Maker Labs"
-            width={232}
-            height={100}
+          <BrandLogo
             priority
-            className="h-[64px] w-auto object-contain drop-shadow-[0_2px_0_rgba(7,16,20,0.35)]"
+            className="w-[136px] sm:w-[152px] lg:w-[176px]"
           />
         </Link>
 

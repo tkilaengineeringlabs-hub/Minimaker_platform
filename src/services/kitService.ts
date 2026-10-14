@@ -1,14 +1,16 @@
 import { supabase } from "~/lib/supabase";
 import type { KitId } from "~/utils/kits";
 
-export const getMyUnlockedKitIds = async (): Promise<KitId[]> => {
+export const getMyUnlockedKitIds = async (userId: string): Promise<KitId[]> => {
   if (supabase === null) return [];
 
-  const { data, error } = await supabase.from("user_kits").select("kit_id");
+  const { data, error } = await supabase
+    .from("user_kits")
+    .select("kit_id")
+    .eq("user_id", userId);
 
   if (error !== null) {
-    console.error("Error loading user kits", error.message);
-    return [];
+    throw error;
   }
 
   return data.map((row) => row.kit_id);
@@ -20,8 +22,8 @@ export const saveUnlockedKit = async ({
 }: {
   userId: string;
   kitId: KitId;
-}): Promise<void> => {
-  if (supabase === null) return;
+}): Promise<boolean> => {
+  if (supabase === null) return false;
 
   const { error } = await supabase.from("user_kits").upsert(
     {
@@ -34,5 +36,7 @@ export const saveUnlockedKit = async ({
 
   if (error !== null) {
     console.error("Error saving unlocked kit", error.message);
+    return false;
   }
+  return true;
 };

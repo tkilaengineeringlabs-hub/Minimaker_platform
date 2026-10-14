@@ -1,16 +1,12 @@
+import { useUnlockedKits } from "~/hooks/useUnlockedKits";
 import type { NextPage } from "next";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BottomBar } from "~/components/BottomBar";
 import { LeftBar } from "~/components/LeftBar";
 import { SettingsGearSvg } from "~/components/Svgs";
 import { useBoundStore } from "~/hooks/useBoundStore";
-import {
-  isKitUnlocked,
-  kits as kitData,
-  readUnlockedKitIds,
-  type KitData,
-} from "~/utils/kits";
+import { isKitUnlocked, kits as kitData, type KitData } from "~/utils/kits";
 import {
   getLearningPathById,
   learningPaths,
@@ -55,16 +51,11 @@ const Profile: NextPage = () => {
   const loggedIn = useBoundStore((x) => x.loggedIn);
   const name = useBoundStore((x) => x.name);
   const username = useBoundStore((x) => x.username);
-  const supabaseUserId = useBoundStore((x) => x.supabaseUserId);
   const streak = useBoundStore((x) => x.streak);
   const role = useBoundStore((x) => x.role);
   const xpByDate = useBoundStore((x) => x.xpByDate);
   const progressByPath = useBoundStore((x) => x.progressByPath);
-  const [unlockedKitIds, setUnlockedKitIds] = useState(readUnlockedKitIds);
-
-  useEffect(() => {
-    setUnlockedKitIds(readUnlockedKitIds());
-  }, [supabaseUserId]);
+  const { unlockedKitIds } = useUnlockedKits();
 
   const totalXp = useMemo(
     () => Object.values(xpByDate).reduce((total, xp) => total + xp, 0),

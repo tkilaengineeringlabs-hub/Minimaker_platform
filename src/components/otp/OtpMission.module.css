@@ -1,0 +1,34 @@
+.mission {
+  font-family: Arial, Helvetica, system-ui, sans-serif;
+}
+.title {
+  font-family: "Jersey 10", "Courier New", monospace;
+  font-weight: 400;
+}
+.robot {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+.scan {
+  animation: scan 1.6s ease-in-out infinite alternate;
+}
+.happy {
+  animation: celebrate 0.5s ease-out;
+}
+@keyframes scan {
+  to {
+    transform: translateY(68px);
+  }
+}
+@keyframes celebrate {
+  50% {
+    transform: translateY(-12px) rotate(-3deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan,
+  .happy {
+    animation: none;
+  }
+}

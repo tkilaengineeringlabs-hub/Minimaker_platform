@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { BrandLogo } from "~/components/BrandLogo";
 import type { ComponentProps } from "react";
 import React, { useEffect, useRef, useState } from "react";
 import type { Tab } from "./BottomBar";
@@ -50,12 +50,8 @@ export const LeftBar = ({ selectedTab }: { selectedTab: Tab | null }) => {
           className="mb-4 ml-2 mt-4 hidden w-[190px] transition hover:-translate-y-0.5 lg:block"
           aria-label="Mini Maker Labs"
         >
-          <Image
-            src="/logotipo mini maker labs blanco.png"
-            alt="Mini Maker Labs"
-            width={232}
-            height={100}
-            className="h-auto w-full object-contain drop-shadow-[0_2px_0_rgba(7,16,20,0.22)]"
+          <BrandLogo
+            className="w-full"
             priority
           />
         </Link>

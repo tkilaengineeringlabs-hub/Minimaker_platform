@@ -1,3 +1,4 @@
+import { useUnlockedKits } from "~/hooks/useUnlockedKits";
 import type { NextPage } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -9,12 +10,12 @@ import { useBoundStore } from "~/hooks/useBoundStore";
 import {
   kits as kitData,
   isKitUnlocked,
-  readUnlockedKitIds,
   roverStorageKey,
   roverUnlockCode,
   type KitData,
 } from "~/utils/kits";
 import { getLearningPathById } from "~/utils/learningPaths";
+import { isSupabaseConfigured } from "~/lib/supabase";
 import { saveUnlockedKit } from "~/services/kitService";
 
 type KitStatus = "EN PROGRESO" | "DISPONIBLE" | "BLOQUEADO";
@@ -25,16 +26,12 @@ type UserKit = KitData & {
 };
 
 const Kits: NextPage = () => {
-  const [unlockedKitIds, setUnlockedKitIds] = useState(readUnlockedKitIds);
+  const { unlockedKitIds, refreshLocalKits } = useUnlockedKits();
   const [unlockModalShown, setUnlockModalShown] = useState(false);
   const lessonsCompletedForPath = useBoundStore(
     (x) => x.lessonsCompletedForPath,
   );
   const supabaseUserId = useBoundStore((x) => x.supabaseUserId);
-
-  useEffect(() => {
-    setUnlockedKitIds(readUnlockedKitIds());
-  }, [supabaseUserId]);
 
   const kits: UserKit[] = kitData.map((kit) => {
     const learningPath = getLearningPathById(kit.learningPathId);
@@ -47,7 +44,7 @@ const Kits: NextPage = () => {
     const progress = Math.min(
       100,
       Math.max(
-        kit.defaultProgress,
+        isSupabaseConfigured ? 0 : kit.defaultProgress,
         Math.round((lessonsCompleted / totalLessons) * 100),
       ),
     );
@@ -65,12 +62,28 @@ const Kits: NextPage = () => {
     };
   });
 
-  const unlockRover = () => {
-    localStorage.setItem(roverStorageKey, "true");
-    if (supabaseUserId !== null) {
-      void saveUnlockedKit({ userId: supabaseUserId, kitId: "rover-bot" });
+  const unlockRover = async (): Promise<boolean> => {
+    if (isSupabaseConfigured) {
+      if (supabaseUserId === null) return false;
+      const saved = await saveUnlockedKit({
+        userId: supabaseUserId,
+        kitId: "rover-bot",
+      });
+      if (!saved || useBoundStore.getState().supabaseUserId !== supabaseUserId)
+        return false;
+      useBoundStore
+        .getState()
+        .setUnlockedKitIds([
+          ...new Set([
+            ...useBoundStore.getState().unlockedKitIds,
+            "rover-bot" as const,
+          ]),
+        ]);
+      return true;
     }
-    setUnlockedKitIds(readUnlockedKitIds());
+    localStorage.setItem(roverStorageKey, "true");
+    refreshLocalKits();
+    return true;
   };
 
   return (
@@ -207,7 +220,7 @@ const UnlockKitModal = ({
   isShown: boolean;
   roverUnlocked: boolean;
   onClose: () => void;
-  onUnlock: () => void;
+  onUnlock: () => Promise<boolean>;
 }) => {
   const [kitCode, setKitCode] = useState("");
   const [message, setMessage] = useState("");
@@ -221,9 +234,14 @@ const UnlockKitModal = ({
     setMessage(roverUnlocked ? "¡Rover Bot desbloqueado!" : "");
   }, [isShown, roverUnlocked]);
 
-  const submitCode = () => {
+  const submitCode = async () => {
     if (kitCode.trim() === roverUnlockCode) {
-      onUnlock();
+      if (!(await onUnlock())) {
+        setMessage(
+          "No se pudo desbloquear el kit. Inicia sesión e inténtalo de nuevo.",
+        );
+        return;
+      }
       setIsSuccess(true);
       setMessage("¡Rover Bot desbloqueado!");
       return;
@@ -299,7 +317,7 @@ const UnlockKitModal = ({
           </button>
           <button
             className="rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] px-4 py-3 font-bold uppercase text-white transition hover:brightness-105"
-            onClick={submitCode}
+            onClick={() => void submitCode()}
           >
             Desbloquear
           </button>

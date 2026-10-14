@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "~/lib/supabase";
 import type { Profile, UserRole } from "~/types/supabase";
+import { getProfile } from "~/services/profileService";
 
 export type AuthResult =
   | { ok: true; session: Session | null; profile: Profile | null }
@@ -34,6 +35,10 @@ export const signUpWithEmail = async ({
     email,
     password,
     options: {
+      emailRedirectTo:
+        typeof window === "undefined"
+          ? undefined
+          : `${window.location.origin}/?login`,
       data: {
         display_name: displayName,
         role,
@@ -68,7 +73,11 @@ export const signInWithEmail = async ({
 
   if (error !== null) return { ok: false, message: error.message };
 
-  return { ok: true, session: data.session, profile: null };
+  return {
+    ok: true,
+    session: data.session,
+    profile: data.user === null ? null : await getProfile(data.user.id),
+  };
 };
 
 export const signOut = async (): Promise<void> => {

@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import type { BoundStateCreator } from "~/hooks/useBoundStore";
 import type { UserRole } from "~/types/supabase";
+import { isSupabaseConfigured } from "~/lib/supabase";
+import type { KitId } from "~/utils/kits";
 
 export type UserSlice = {
   supabaseUserId: string | null;
@@ -10,6 +12,10 @@ export type UserSlice = {
   role: UserRole;
   joinedAt: dayjs.Dayjs;
   loggedIn: boolean;
+  authReady: boolean;
+  unlockedKitIds: KitId[];
+  setAuthReady: (ready: boolean) => void;
+  setUnlockedKitIds: (kitIds: KitId[]) => void;
   setSupabaseUser: (user: {
     id: string | null;
     email?: string;
@@ -29,6 +35,10 @@ export const createUserSlice: BoundStateCreator<UserSlice> = (set) => ({
   role: "student",
   joinedAt: dayjs(),
   loggedIn: false,
+  authReady: !isSupabaseConfigured,
+  unlockedKitIds: [],
+  setAuthReady: (authReady) => set({ authReady }),
+  setUnlockedKitIds: (unlockedKitIds) => set({ unlockedKitIds }),
   setSupabaseUser: ({ id, email = "", role = "student" }) =>
     set(() => ({ supabaseUserId: id, email, role })),
   setName: (name: string) => set(() => ({ name })),
@@ -40,5 +50,8 @@ export const createUserSlice: BoundStateCreator<UserSlice> = (set) => ({
       supabaseUserId: null,
       email: "",
       role: "student",
+      name: "",
+      username: "",
+      unlockedKitIds: [],
     })),
 });

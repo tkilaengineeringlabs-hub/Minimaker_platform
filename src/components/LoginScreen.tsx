@@ -85,9 +85,8 @@ export const LoginScreen = ({
   const setName = useBoundStore((x) => x.setName);
 
   const [ageTooltipShown, setAgeTooltipShown] = useState(false);
-  const [role, setRole] = useState<Exclude<UserRole, "school_admin">>(
-    "student",
-  );
+  const [role, setRole] =
+    useState<Exclude<UserRole, "school_admin">>("student");
   const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -120,7 +119,11 @@ export const LoginScreen = ({
     const email = emailInputRef.current?.value.trim() ?? "";
     const password = passwordInputRef.current?.value ?? "";
 
-    if (isSupabaseConfigured && email.length > 0 && password.length > 0) {
+    if (isSupabaseConfigured) {
+      if (email === "" || password === "") {
+        setAuthMessage("Completa correo y contraseña.");
+        return;
+      }
       setAuthLoading(true);
       const result =
         loginScreenState === "LOGIN"
@@ -128,7 +131,8 @@ export const LoginScreen = ({
           : await signUpWithEmail({
               email,
               password,
-              displayName: name === "" ? email.split("@")[0] ?? "Maker" : name,
+              displayName:
+                name === "" ? (email.split("@")[0] ?? "Maker") : name,
               role,
             });
       setAuthLoading(false);
@@ -138,7 +142,16 @@ export const LoginScreen = ({
         return;
       }
 
-      void router.push(role === "teacher" ? "/teacher" : "/learn");
+      if (result.session === null) {
+        setAuthMessage(
+          "Revisa tu correo y confirma tu cuenta antes de iniciar sesión.",
+        );
+        return;
+      }
+
+      void router.push(
+        (result.profile?.role ?? role) === "teacher" ? "/teacher" : "/learn",
+      );
       return;
     }
 
@@ -180,12 +193,12 @@ export const LoginScreen = ({
           <CloseSvg />
           <span className="sr-only">Cerrar</span>
         </button>
-          <button
-            className="hidden rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 text-sm font-bold uppercase text-[#00acc1] transition hover:bg-gray-50 hover:brightness-90 sm:block"
-            onClick={() =>
-              setLoginScreenState((x) => (x === "LOGIN" ? "SIGNUP" : "LOGIN"))
-            }
-          >
+        <button
+          className="hidden rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 text-sm font-bold uppercase text-[#00acc1] transition hover:bg-gray-50 hover:brightness-90 sm:block"
+          onClick={() =>
+            setLoginScreenState((x) => (x === "LOGIN" ? "SIGNUP" : "LOGIN"))
+          }
+        >
           {loginScreenState === "LOGIN" ? "Crear cuenta" : "Iniciar sesión"}
         </button>
       </header>
@@ -213,7 +226,9 @@ export const LoginScreen = ({
                           : "border-gray-200 bg-gray-50 text-gray-500",
                       ].join(" ")}
                       onClick={() =>
-                        setRole(option.value as Exclude<UserRole, "school_admin">)
+                        setRole(
+                          option.value as Exclude<UserRole, "school_admin">,
+                        )
                       }
                     >
                       Soy {option.label}
@@ -245,9 +260,9 @@ export const LoginScreen = ({
                   </div>
                 </div>
                 <input
-                    className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
-                    placeholder="Nombre"
-                    ref={nameInputRef}
+                  className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
+                  placeholder="Nombre"
+                  ref={nameInputRef}
                 />
               </>
             )}
@@ -292,8 +307,8 @@ export const LoginScreen = ({
             {authLoading
               ? "Cargando..."
               : loginScreenState === "LOGIN"
-              ? "Iniciar sesión"
-              : "Crear cuenta"}
+                ? "Iniciar sesión"
+                : "Crear cuenta"}
           </button>
           <div className="flex items-center gap-2">
             <div className="h-[2px] grow bg-gray-300"></div>

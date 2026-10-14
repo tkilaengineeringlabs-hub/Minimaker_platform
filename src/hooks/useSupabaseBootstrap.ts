@@ -4,75 +4,89 @@ import { getMyUnlockedKitIds } from "~/services/kitService";
 import { getProfile } from "~/services/profileService";
 import { getMyLearningProgress } from "~/services/progressService";
 import { useBoundStore } from "~/hooks/useBoundStore";
-import type { UserRole } from "~/types/supabase";
 import type { LearningPathId } from "~/utils/learningPaths";
-import { writeUnlockedKitIds } from "~/utils/kits";
 
 export const useSupabaseBootstrap = () => {
-  const logIn = useBoundStore((x) => x.logIn);
-  const logOut = useBoundStore((x) => x.logOut);
-  const setName = useBoundStore((x) => x.setName);
-  const setUsername = useBoundStore((x) => x.setUsername);
-  const setSupabaseUser = useBoundStore((x) => x.setSupabaseUser);
-  const setProgressByPath = useBoundStore((x) => x.setProgressByPath);
-  const setTotalXp = useBoundStore((x) => x.setTotalXp);
-
   useEffect(() => {
     if (supabase === null) return;
+    let active = true;
+    let revision = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const hydrateSession = async (userId: string, email: string) => {
-      const [profile, progress, unlockedKitIds] = await Promise.all([
-        getProfile(userId),
-        getMyLearningProgress(),
-        getMyUnlockedKitIds(),
-      ]);
-      const role = profile?.role ?? "student";
-      const displayName =
-        profile?.display_name ?? email.split("@")[0] ?? "Maker";
-      const progressByPath = progress.reduce(
-        (result, row) => ({
-          ...result,
-          [row.path_id]: row.completed_lessons,
-        }),
-        {} as Partial<Record<LearningPathId, number>>,
-      );
-      const totalXp = progress.reduce((total, row) => total + row.xp, 0);
-
-      setSupabaseUser({ id: userId, email, role: role as UserRole });
-      setName(displayName);
-      setUsername(displayName.replace(/ +/g, "-").toLowerCase());
-      setProgressByPath(progressByPath);
-      setTotalXp(totalXp);
-      writeUnlockedKitIds(unlockedKitIds);
-      logIn();
+    const clearUserData = () => {
+      const store = useBoundStore.getState();
+      store.logOut();
+      store.setProgressByPath({});
+      store.setTotalXp(0);
     };
 
-    void supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user;
-      if (user !== undefined) {
-        void hydrateSession(user.id, user.email ?? "");
+    const hydrateSession = async (
+      userId: string,
+      email: string,
+      current: number,
+    ) => {
+      try {
+        const [profile, progress, kitIds] = await Promise.all([
+          getProfile(userId),
+          getMyLearningProgress(userId),
+          getMyUnlockedKitIds(userId),
+        ]);
+        if (!active || current !== revision) return;
+        if (profile === null)
+          throw new Error("No se pudo cargar el perfil Maker.");
+
+        const progressByPath = progress.reduce(
+          (result, row) => ({
+            ...result,
+            [row.path_id]: row.completed_lessons,
+          }),
+          {} as Partial<Record<LearningPathId, number>>,
+        );
+        const store = useBoundStore.getState();
+        store.setSupabaseUser({ id: userId, email, role: profile.role });
+        store.setName(profile.display_name);
+        store.setUsername(
+          profile.display_name.replace(/ +/g, "-").toLowerCase(),
+        );
+        store.setProgressByPath(progressByPath);
+        store.setTotalXp(progress.reduce((total, row) => total + row.xp, 0));
+        store.setUnlockedKitIds(kitIds);
+        store.logIn();
+      } catch (error) {
+        if (!active || current !== revision) return;
+        console.error("Error loading Maker account", error);
+        clearUserData();
+      } finally {
+        if (active && current === revision)
+          useBoundStore.getState().setAuthReady(true);
       }
-    });
+    };
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      const current = ++revision;
+      clearTimeout(timer);
       if (event === "SIGNED_OUT" || session === null) {
-        logOut();
+        clearUserData();
+        useBoundStore.getState().setAuthReady(true);
         return;
       }
-
-      void hydrateSession(session.user.id, session.user.email ?? "");
+      if (useBoundStore.getState().supabaseUserId !== session.user.id) {
+        clearUserData();
+        useBoundStore.getState().setAuthReady(false);
+      }
+      // Run API calls after the Auth callback releases its session lock.
+      timer = setTimeout(() => {
+        void hydrateSession(session.user.id, session.user.email ?? "", current);
+      }, 0);
     });
 
-    return () => subscription.unsubscribe();
-  }, [
-    logIn,
-    logOut,
-    setName,
-    setProgressByPath,
-    setSupabaseUser,
-    setTotalXp,
-    setUsername,
-  ]);
+    return () => {
+      active = false;
+      revision++;
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
+  }, []);
 };

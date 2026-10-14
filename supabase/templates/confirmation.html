@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      color: #102a36;
+      background: #f7faf8;
+      padding: 24px;
+    "
+  >
+    <h1>Tu código secreto, Maker</h1>
+    <p>Introduce este código en Mini Maker Labs para activar tu cuenta:</p>
+    <p
+      style="
+        font-size: 32px;
+        letter-spacing: 8px;
+        font-weight: bold;
+        color: #00838f;
+      "
+    >
+      {{ .Token }}
+    </p>
+    <p>
+      Si prefieres confirmar mediante enlace,
+      <a href="{{ .ConfirmationURL }}">activa tu cuenta aquí</a>.
+    </p>
+    <p>Si no solicitaste este registro, puedes ignorar este correo.</p>
+  </body>
+</html>

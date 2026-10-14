@@ -1,3 +1,5 @@
+import { isSupabaseConfigured } from "~/lib/supabase";
+
 export type KitId =
   | "fundamentos-maker"
   | "rover-bot"
@@ -141,6 +143,7 @@ export const getKitById = (kitId: KitId): KitData | undefined =>
   kits.find((kit) => kit.id === kitId);
 
 export const readUnlockedKitIds = (): Set<KitId> => {
+  if (isSupabaseConfigured) return new Set<KitId>();
   const unlockedKitIds = new Set<KitId>(["fundamentos-maker"]);
 
   if (typeof window === "undefined") {
@@ -157,20 +160,6 @@ export const readUnlockedKitIds = (): Set<KitId> => {
   });
 
   return unlockedKitIds;
-};
-
-export const writeUnlockedKitIds = (kitIds: readonly KitId[]) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  kits.forEach((kit) => {
-    if (kit.unlockStorageKey === undefined) return;
-
-    if (kitIds.includes(kit.id)) {
-      localStorage.setItem(kit.unlockStorageKey, "true");
-    }
-  });
 };
 
 export const isKitUnlocked = (

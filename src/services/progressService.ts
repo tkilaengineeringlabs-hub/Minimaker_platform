@@ -2,17 +2,19 @@ import { supabase } from "~/lib/supabase";
 import type { LearningProgress } from "~/types/supabase";
 import type { LearningPathId } from "~/utils/learningPaths";
 
-export const getMyLearningProgress = async (): Promise<LearningProgress[]> => {
+export const getMyLearningProgress = async (
+  userId: string,
+): Promise<LearningProgress[]> => {
   if (supabase === null) return [];
 
   const { data, error } = await supabase
     .from("learning_progress")
     .select("*")
+    .eq("user_id", userId)
     .order("path_id");
 
   if (error !== null) {
-    console.error("Error loading learning progress", error.message);
-    return [];
+    throw error;
   }
 
   return data;

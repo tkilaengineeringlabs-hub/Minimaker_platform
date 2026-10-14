@@ -1,4 +1,5 @@
 import type { BoundStateCreator } from "~/hooks/useBoundStore";
+import { isSupabaseConfigured } from "~/lib/supabase";
 import {
   defaultLearningPathId,
   learningPaths,
@@ -31,7 +32,7 @@ const normalizeProgressByPath = (
 };
 
 const readProgressByPath = (): ProgressByPath => {
-  if (typeof window === "undefined") {
+  if (isSupabaseConfigured || typeof window === "undefined") {
     return createEmptyProgressByPath();
   }
 
@@ -50,7 +51,7 @@ const readProgressByPath = (): ProgressByPath => {
 };
 
 const writeProgressByPath = (progressByPath: ProgressByPath) => {
-  if (typeof window === "undefined") {
+  if (isSupabaseConfigured || typeof window === "undefined") {
     return;
   }
 
