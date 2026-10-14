@@ -1,29 +1,36 @@
 import Link from "next/link";
-import type { ComponentProps } from "react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import dayjs from "dayjs";
-import {
-  BronzeLeagueSvg,
-  EmptyFireSvg,
-  EmptyGemSvg,
-  FireSvg,
-  GemSvg,
-  LightningProgressSvg,
-  LingotsTreasureChestSvg,
-  TreasureProgressSvg,
-} from "./Svgs";
-import { Calendar } from "./Calendar";
+import { BronzeLeagueSvg, EmptyFireSvg, FireSvg } from "./Svgs";
+import { StreakModal } from "./Calendar";
+import { TeslaCoilIcon, TeslasModal } from "./TeslaReward";
 import { useBoundStore } from "~/hooks/useBoundStore";
-import { Flag } from "./Flag";
 import type { LoginScreenState } from "./LoginScreen";
 import { LoginScreen } from "./LoginScreen";
 import { useLeaderboardRank } from "~/hooks/useLeaderboard";
+import {
+  defaultLearningPathId,
+  getLearningPathById,
+  type LearningPathId,
+} from "~/utils/learningPaths";
+import { getMakerSidebarCards } from "~/utils/makerSidebarCards";
 
-export const RightBar = () => {
+const lessonsPerActivity = 4;
+
+export const RightBar = ({
+  learningPathId = defaultLearningPathId,
+  learningPathName = "Fundamentos Maker",
+  learningPathEmoji = "🤖",
+  learningPathMenu,
+}: {
+  learningPathId?: LearningPathId;
+  learningPathName?: string;
+  learningPathEmoji?: string;
+  learningPathMenu?: React.ReactNode;
+}) => {
   const loggedIn = useBoundStore((x) => x.loggedIn);
-  const lingots = useBoundStore((x) => x.lingots);
+  const teslas = useBoundStore((x) => x.teslas);
   const streak = useBoundStore((x) => x.streak);
-  const language = useBoundStore((x) => x.language);
   const lessonsCompleted = useBoundStore((x) => x.lessonsCompleted);
 
   const [languagesShown, setLanguagesShown] = useState(false);
@@ -31,7 +38,7 @@ export const RightBar = () => {
   const [streakShown, setStreakShown] = useState(false);
   const [now, setNow] = useState(dayjs());
 
-  const [gemsShown, setGemsShown] = useState(false);
+  const [teslasShown, setTeslasShown] = useState(false);
 
   const [loginScreenState, setLoginScreenState] =
     useState<LoginScreenState>("HIDDEN");
@@ -48,8 +55,10 @@ export const RightBar = () => {
             role="button"
             tabIndex={0}
           >
-            <Flag language={language} width={45} />
-            <div>{language.name}</div>
+            <span className="text-3xl" aria-hidden="true">
+              {learningPathEmoji}
+            </span>
+            <div>{learningPathName}</div>
             <div
               className="absolute top-full z-10 rounded-2xl border-2 border-gray-300 bg-white"
               style={{
@@ -58,38 +67,37 @@ export const RightBar = () => {
                 display: languagesShown ? "block" : "none",
               }}
             >
-              <h2 className="px-5 py-3 font-bold uppercase text-gray-400">
-                Programas
-              </h2>
-              <button className="flex w-full items-center gap-3 border-t-2 border-gray-300 bg-blue-100 px-5 py-3 text-left font-bold">
-                <Flag language={language} width={45} />
-                <span className="text-blue-500">{language.name}</span>
-              </button>
-              <Link
-                className="flex w-full items-center gap-3 rounded-b-2xl border-t-2 border-gray-300 px-5 py-3 text-left font-bold hover:bg-gray-100"
-                href="/register"
-              >
-                <span className="flex items-center justify-center rounded-lg border-2 border-gray-400 px-2 text-lg font-bold text-gray-400">
-                  +
-                </span>
-                <span className="text-gray-600">Explorar nuevas rutas</span>
-              </Link>
+              {learningPathMenu ?? (
+                <>
+                  <h2 className="px-5 py-3 font-bold uppercase text-gray-400">
+                    Programas
+                  </h2>
+                  <button className="flex w-full items-center gap-3 border-t-2 border-gray-300 bg-blue-100 px-5 py-3 text-left font-bold">
+                    <span className="text-3xl" aria-hidden="true">
+                      {learningPathEmoji}
+                    </span>
+                    <span className="text-blue-500">{learningPathName}</span>
+                  </button>
+                  <Link
+                    className="flex w-full items-center gap-3 rounded-b-2xl border-t-2 border-gray-300 px-5 py-3 text-left font-bold hover:bg-gray-100"
+                    href="/register"
+                  >
+                    <span className="flex items-center justify-center rounded-lg border-2 border-gray-400 px-2 text-lg font-bold text-gray-400">
+                      +
+                    </span>
+                    <span className="text-gray-600">Explorar nuevas rutas</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
-          <span
+          <button
             className="relative flex items-center gap-2 rounded-xl p-3 font-bold text-orange-500 hover:bg-gray-100"
-            onMouseEnter={() => setStreakShown(true)}
-            onMouseLeave={() => {
-              setStreakShown(false);
+            onClick={() => {
+              setStreakShown(true);
               setNow(dayjs());
             }}
-            onClick={(event) => {
-              if (event.target !== event.currentTarget) return;
-              setStreakShown((x) => !x);
-              setNow(dayjs());
-            }}
-            role="button"
-            tabIndex={0}
+            aria-label="Abrir racha"
           >
             <div className="pointer-events-none">
               {streak > 0 ? <FireSvg /> : <EmptyFireSvg />}
@@ -97,63 +105,25 @@ export const RightBar = () => {
             <span className={streak > 0 ? "text-orange-500" : "text-gray-300"}>
               {streak}
             </span>
-            <div
-              className="absolute top-full z-10 flex flex-col gap-5 rounded-2xl border-2 border-gray-300 bg-white p-5 text-black"
-              style={{
-                left: "calc(50% - 200px)",
-                width: 400,
-                display: streakShown ? "flex" : "none",
-              }}
-            >
-              <h2 className="text-center text-lg font-bold">Streak</h2>
-              <p className="text-center text-sm font-normal text-gray-400">
-                {`But your streak will reset tomorrow if you don't practice tomorrow. Watch out!`}
-              </p>
-              <Calendar now={now} setNow={setNow} />
-            </div>
-          </span>
-          <span
-            className="relative flex items-center gap-2 rounded-xl p-3 font-bold text-red-500 hover:bg-gray-100"
-            onMouseEnter={() => setGemsShown(true)}
-            onMouseLeave={() => setGemsShown(false)}
-            onClick={() => setGemsShown((x) => !x)}
-            role="button"
-            tabIndex={0}
+          </button>
+          <button
+            className="relative flex items-center gap-2 rounded-xl p-3 font-bold text-[#00838f] hover:bg-gray-100"
+            onClick={() => setTeslasShown(true)}
+            aria-label="Abrir Teslas"
           >
-            {lingots > 0 ? <GemSvg /> : <EmptyGemSvg />}
-            <span className={lingots > 0 ? "text-red-500" : "text-gray-300"}>
-              {lingots}
+            <TeslaCoilIcon size={30} muted={teslas === 0} />
+            <span className={teslas > 0 ? "text-[#00838f]" : "text-gray-300"}>
+              {teslas}
             </span>
-            <div
-              className="absolute top-full z-10 flex w-72 items-center gap-3 rounded-2xl border-2 border-gray-300 bg-white p-5"
-              style={{
-                left: "calc(50% - 150px)",
-                display: gemsShown ? "flex" : "none",
-              }}
-            >
-              <LingotsTreasureChestSvg className="w-24" />
-              <div className="flex flex-col gap-3">
-                <h2 className="text-xl font-bold text-black">Lingots</h2>
-                <p className="text-sm font-normal text-gray-400">
-                  You have {lingots} {lingots === 1 ? "lingot" : "lingots"}.
-                </p>
-                <Link
-                  className="uppercase text-blue-400 transition hover:brightness-110"
-                  href="/shop"
-                >
-                  Go to shop
-                </Link>
-              </div>
-            </div>
-          </span>
+          </button>
         </article>
         {loggedIn && lessonsCompleted < 10 ? (
           <UnlockLeaderboardsSection />
         ) : loggedIn && lessonsCompleted >= 10 ? (
           <LeaderboardRankSection />
         ) : null}
-        <DailyQuestsSection />
-        <XpProgressSection />
+        <MakerChallengeSection learningPathId={learningPathId} />
+        <CurrentProjectSection learningPathId={learningPathId} />
         {!loggedIn && (
           <CreateAProfileSection setLoginScreenState={setLoginScreenState} />
         )}
@@ -161,6 +131,17 @@ export const RightBar = () => {
       <LoginScreen
         loginScreenState={loginScreenState}
         setLoginScreenState={setLoginScreenState}
+      />
+      <StreakModal
+        isShown={streakShown}
+        now={now}
+        setNow={setNow}
+        onClose={() => setStreakShown(false)}
+      />
+      <TeslasModal
+        isShown={teslasShown}
+        teslas={teslas}
+        onClose={() => setTeslasShown(false)}
       />
     </>
   );
@@ -177,13 +158,15 @@ const UnlockLeaderboardsSection = () => {
 
   return (
     <article className="flex flex-col gap-5 rounded-2xl border-2 border-gray-200 p-6 text-gray-700">
-      <h2 className="text-xl font-bold">Unlock Leaderboards!</h2>
+      <h2 className="text-xl font-bold">¡Desbloquea la clasificación!</h2>
       <div className="flex items-center gap-6">
         <LockedLeaderboardsSvg />
         <p className="text-sm leading-6 text-gray-500">
-          Complete {lessonsNeededToUnlockLeaderboards} more lesson
-          {lessonsNeededToUnlockLeaderboards === 1 ? "" : "s"} to start
-          competing
+          Completa {lessonsNeededToUnlockLeaderboards}{" "}
+          {lessonsNeededToUnlockLeaderboards === 1
+            ? "lección más"
+            : "lecciones más"}{" "}
+          para comenzar a competir.
         </p>
       </div>
     </article>
@@ -193,13 +176,13 @@ const UnlockLeaderboardsSection = () => {
 const LeaderboardRankSection = () => {
   const xpThisWeek = useBoundStore((x) => x.xpThisWeek());
   const rank = useLeaderboardRank();
-  const leaderboardLeague = "Bronze League";
+  const leaderboardLeague = "Liga Bronce";
   return (
     <article className="flex flex-col gap-5 rounded-2xl border-2 border-gray-200 p-6 text-gray-700">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">{leaderboardLeague}</h2>
         <Link href="/leaderboard" className="font-bold uppercase text-blue-400">
-          View league
+          Ver clasificación
         </Link>
       </div>
       <div className="flex gap-6">
@@ -207,11 +190,11 @@ const LeaderboardRankSection = () => {
         <div className="flex flex-col gap-5">
           {rank !== null && (
             <p className="text-lg font-bold text-gray-700">
-              {`You're ranked #${rank}`}
+              {`Vas en el puesto #${rank}`}
             </p>
           )}
           <p className="text-sm leading-6 text-gray-500">
-            You earned {xpThisWeek} XP this week so far
+            Has conseguido {xpThisWeek} XP esta semana.
           </p>
         </div>
       </div>
@@ -219,35 +202,110 @@ const LeaderboardRankSection = () => {
   );
 };
 
-const DailyQuestsSection = () => {
-  const xpToday = useBoundStore((x) => x.xpToday());
-  const goalXp = useBoundStore((x) => x.goalXp);
+const MakerChallengeSection = ({
+  learningPathId,
+}: {
+  learningPathId: LearningPathId;
+}) => {
+  const { challenge } = getMakerSidebarCards(learningPathId);
+
   return (
-    <article className="flex flex-col gap-5 rounded-2xl border-2 border-gray-200 p-6 font-bold text-gray-700">
-      <h2 className="text-xl">Daily Quests</h2>
-      <div className="flex items-center gap-4">
-        <LightningProgressSvg />
-        <div className="flex flex-col gap-2">
-          <h3>Earn {goalXp} XP</h3>
-          <div className="flex items-center">
-            <div className="relative h-5 w-52 rounded-l-full bg-gray-200">
-              <div
-                className={[
-                  "relative h-full rounded-l-full bg-yellow-400",
-                  xpToday === 0 ? "" : "px-2",
-                ].join(" ")}
-                style={{ width: `${Math.min(1, xpToday / goalXp) * 100}%` }}
-              >
-                <div className="absolute left-2 right-0 top-1 h-2 rounded-l-full bg-yellow-300"></div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 top-0 flex items-center justify-center text-sm text-gray-400">
-                {xpToday} / {goalXp}
-              </div>
-            </div>
-            <TreasureProgressSvg />
-          </div>
+    <article className="flex flex-col gap-4 rounded-2xl border-2 border-gray-200 p-6 font-bold text-gray-700">
+      <div className="flex items-center gap-2 text-sm uppercase text-[#00acc1]">
+        <span className="text-2xl" aria-hidden="true">
+          ⚡
+        </span>
+        <h2>Reto Maker</h2>
+      </div>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-xl leading-tight">{challenge.title}</h3>
+        <p className="text-sm font-normal leading-6 text-gray-500">
+          {challenge.description}
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2 text-sm">
+        <span className="rounded-xl bg-yellow-50 px-3 py-2 text-yellow-600">
+          🏆 +{challenge.xpReward} XP
+        </span>
+        <span className="rounded-xl bg-cyan-50 px-3 py-2 text-[#00838f]">
+          <span aria-hidden="true">⚡</span> +{challenge.teslasReward} Teslas
+        </span>
+      </div>
+      <Link
+        href={`/learn?path=${learningPathId}`}
+        className="mt-1 rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] py-3 text-center text-sm uppercase text-white transition hover:border-[#00acc1] hover:bg-[#16c3d6]"
+      >
+        Ir al reto
+      </Link>
+    </article>
+  );
+};
+
+const CurrentProjectSection = ({
+  learningPathId,
+}: {
+  learningPathId: LearningPathId;
+}) => {
+  const { project } = getMakerSidebarCards(learningPathId);
+  const lessonsCompleted = useBoundStore((x) =>
+    x.lessonsCompletedForPath(learningPathId),
+  );
+
+  const { completedActivities, progressPercent, totalActivities } =
+    useMemo(() => {
+      const learningPath = getLearningPathById(learningPathId);
+      const activities =
+        learningPath?.units.reduce(
+          (total, unit) => total + unit.tiles.length,
+          0,
+        ) ?? 0;
+      const completed = Math.min(
+        activities,
+        Math.floor(lessonsCompleted / lessonsPerActivity),
+      );
+
+      return {
+        completedActivities: completed,
+        progressPercent:
+          activities === 0 ? 0 : Math.round((completed / activities) * 100),
+        totalActivities: activities,
+      };
+    }, [learningPathId, lessonsCompleted]);
+
+  return (
+    <article className="flex flex-col gap-4 rounded-2xl border-2 border-gray-200 p-6 font-bold text-gray-700">
+      <div className="flex items-center gap-2 text-sm uppercase text-[#00acc1]">
+        <span className="text-2xl" aria-hidden="true">
+          🔧
+        </span>
+        <h2>Proyecto en curso</h2>
+      </div>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-xl leading-tight">{project.title}</h3>
+        <p className="text-sm font-normal leading-6 text-gray-500">
+          {project.description}
+        </p>
+      </div>
+      <div className="flex items-center justify-between gap-3 text-sm text-gray-500">
+        <span>
+          {completedActivities} de {totalActivities} actividades
+        </span>
+        <span className="text-[#00acc1]">{progressPercent}%</span>
+      </div>
+      <div className="h-4 overflow-hidden rounded-full bg-gray-200">
+        <div
+          className="h-full rounded-full bg-[#00acc1] transition-all"
+          style={{ width: `${progressPercent}%` }}
+        >
+          <div className="mx-2 mt-1 h-[6px] rounded-full bg-cyan-200/80" />
         </div>
       </div>
+      <Link
+        href={`/learn?path=${learningPathId}`}
+        className="mt-1 rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] py-3 text-center text-sm uppercase text-white transition hover:border-[#00acc1] hover:bg-[#16c3d6]"
+      >
+        Continuar proyecto
+      </Link>
     </article>
   );
 };
@@ -272,350 +330,12 @@ const LockedLeaderboardsSvg = () => {
         fill="#D6E4EF"
       />
       <path
-        d="M26.9597 -1.52588e-05L33.1709 -1.52588e-05C36.9426 -1.52588e-05 40.0002 3.05754 40.0002 6.82922V14.5539L13.2484 41.3056C6.49782 39.4476 1.33102 33.7672 0.221802 26.7379L26.9597 -1.52588e-05Z"
-        fill="#D1DCE5"
-      />
-      <path
-        d="M4.39056 22.5692V23.9023C4.39056 31.1031 9.96287 37.0024 17.0306 37.5234L13.2484 41.3056C6.49782 39.4476 1.33102 33.7672 0.221802 26.7379L4.39056 22.5692ZM35.6099 18.9441V6.82922C35.6099 5.48219 34.518 4.39021 33.1709 4.39021L22.5695 4.39021L26.9597 -1.52588e-05L33.1709 -1.52588e-05C36.9426 -1.52588e-05 40.0002 3.05754 40.0002 6.82922V14.5539L35.6099 18.9441Z"
-        fill="#E0EAF3"
-      />
-      <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M17.0277 22.1682C15.8255 21.312 15.0474 19.9455 15.0474 18.4059C15.0474 15.813 17.2544 13.7111 19.9769 13.7111C22.6994 13.7111 24.9064 15.813 24.9064 18.4059C24.9064 19.9765 24.0966 21.3669 22.853 22.2192L24.1155 25.5237C24.4553 26.4131 23.9457 27.3871 22.9772 27.6992C22.7794 27.7629 22.5714 27.7954 22.3619 27.7954H17.4994C16.473 27.7954 15.6409 27.0313 15.6409 26.0887C15.6409 25.8963 15.6764 25.7053 15.7458 25.5237L17.0277 22.1682Z"
         fill="#8097AA"
       />
     </svg>
-  );
-};
-
-const TreasureClosedSvg = (props: ComponentProps<"svg">) => {
-  return (
-    <svg width="76px" height="76px" viewBox="0 0 76 76" {...props}>
-      <defs>
-        <path
-          d="M3.86139252,0 L68.6938776,0 C70.8264639,0 72.555269,1.71104633 72.555269,3.82172455 L72.555269,37.605593 C72.555269,39.7162712 70.8264639,41.4273175 68.6938776,41.4273175 L3.86139252,41.4273175 C1.72880408,41.4273175 0,39.7162712 0,37.605593 L0,3.82172455 C0,1.71104633 1.72880408,0 3.86139252,0 Z"
-          id="path-1"
-        />
-        <polygon
-          id="path-3"
-          points="0 0 52.7674684 0 52.7674684 2.18038513 0 2.18038513"
-        />
-        <polygon
-          id="path-5"
-          points="0 0 52.7674684 0 52.7674684 2.18038513 0 2.18038513"
-        />
-        <path
-          d="M73.262529,75.2232871 L2.59070681,75.2232871 C1.15989931,75.2232871 0,74.0730206 0,72.6540957 L0,2.56919141 C0,1.15026218 1.15989931,0 2.59070681,0 L12.7998048,0 C14.2306167,0 15.3905116,1.15026218 15.3905116,2.56919141 L15.3905116,35.9763547 L60.4627242,35.9763547 L60.4627242,2.56919141 C60.4627242,1.15026218 61.6226191,0 63.053431,0 L73.262529,0 C74.6933409,0 75.8532358,1.15026218 75.8532358,2.56919141 L75.8532358,72.6540957 C75.8532358,74.0730206 74.6933409,75.2232871 73.262529,75.2232871 Z"
-          id="path-7"
-        />
-        <polygon
-          id="path-9"
-          points="0 0 45.0722126 0 45.0722126 17.4430811 0 17.4430811"
-        />
-        <polygon
-          id="path-11"
-          points="0.0272741852 0.350693145 46.8210364 0.350693145 46.8210364 2.91988456 0.0272741852 2.91988456"
-        />
-        <polygon
-          id="path-13"
-          points="0 46.28539 0 15.2626959 15.3905116 0 15.3905116 29.4351993 16.9913007 29.4351993"
-        />
-        <path
-          d="M73.7539135,0 L73.7539135,44.0674805 L55.1790391,62.4880958 L55.1782476,62.4873152 L52.2295245,65.411554 L0.491384548,65.411554 C0.326577453,65.411554 0.165365142,65.3962929 0.00910637696,65.3671181 L13.2911894,52.1953457 L13.2911894,57.780206 L58.3634019,57.780206 L58.3634019,40.337125 L29.3189671,40.337125 L37.9821432,31.7458951 L39.8621491,33.6102989 L47.3701794,26.1646216 L58.3634019,26.1646216 L58.3634019,15.2626959 L73.7539135,0 Z"
-          id="path-15"
-        />
-        <path
-          d="M2.59070681,0 L18.2964161,0 C19.727228,0 20.8871229,1.15026218 20.8871229,2.56919141 L20.8871229,22.5052376 C20.8871229,23.9241669 19.727228,25.074429 18.2964161,25.074429 L2.59070681,25.074429 C1.15989491,25.074429 0,23.9241669 0,22.5052376 L0,2.56919141 C0,1.15026218 1.15989491,0 2.59070681,0 Z"
-          id="path-17"
-        />
-        <path
-          d="M4.94695016,10.175127 C2.21482654,10.175127 0,7.89735495 0,5.08756894 C0,2.27778294 2.21482654,0 4.94695016,0 C7.67907378,0 9.89390032,2.27778294 9.89390032,5.08756894 C9.89390032,7.89735495 7.67907378,10.175127 4.94695016,10.175127 Z"
-          id="path-19"
-        />
-        <path
-          d="M7.43585973,2.64571203 L9.10020065,7.34990385 C9.44121041,8.313754 8.92976172,9.36925664 7.95783992,9.70743438 C7.75942325,9.77646537 7.55066195,9.8117331 7.34038359,9.8117331 L2.46067897,9.8117331 C1.43066898,9.8117331 0.595678759,8.98367734 0.595678759,7.96223231 C0.595678759,7.75370028 0.631241834,7.54667271 0.700861912,7.34990385 L2.36520283,2.64571203 C2.85647896,1.25711195 4.38985761,0.526388579 5.79007537,1.01359564 C6.56015061,1.28153226 7.1656793,1.88203213 7.43585973,2.64571203 Z"
-          id="path-21"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23045821,5.45096283 0,4.2307212 0,2.72548142 C0,1.22024164 1.23045821,0 2.74830565,0 C4.26615308,0 5.49661129,1.22024164 5.49661129,2.72548142 C5.49661129,4.2307212 4.26615308,5.45096283 2.74830565,5.45096283 Z"
-          id="path-23"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23045821,5.45096283 0,4.23072338 0,2.72548142 C0,1.22023946 1.23045821,0 2.74830565,0 C4.26615308,0 5.49661129,1.22023946 5.49661129,2.72548142 C5.49661129,4.23072338 4.26615308,5.45096283 2.74830565,5.45096283 Z"
-          id="path-25"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23046041,5.45096283 0,4.23072338 0,2.72548142 C0,1.22023946 1.23046041,0 2.74830565,0 C4.26615088,0 5.49661129,1.22023946 5.49661129,2.72548142 C5.49661129,4.23072338 4.26615088,5.45096283 2.74830565,5.45096283 Z"
-          id="path-27"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23046041,5.45096283 0,4.2307212 0,2.72548142 C0,1.22024164 1.23046041,0 2.74830565,0 C4.26615088,0 5.49661129,1.22024164 5.49661129,2.72548142 C5.49661129,4.2307212 4.26615088,5.45096283 2.74830565,5.45096283 Z"
-          id="path-29"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23045821,5.45096283 0,4.2307212 0,2.72548142 C0,1.22024164 1.23045821,0 2.74830565,0 C4.26615308,0 5.49661129,1.22024164 5.49661129,2.72548142 C5.49661129,4.2307212 4.26615308,5.45096283 2.74830565,5.45096283 Z"
-          id="path-31"
-        />
-        <path
-          d="M2.74830565,5.45096283 C1.23046041,5.45096283 0,4.2307212 0,2.72548142 C0,1.22024164 1.23046041,0 2.74830565,0 C4.26615088,0 5.49661129,1.22024164 5.49661129,2.72548142 C5.49661129,4.2307212 4.26615088,5.45096283 2.74830565,5.45096283 Z"
-          id="path-33"
-        />
-      </defs>
-      <g
-        id="PANEL-CHEST"
-        stroke="none"
-        strokeWidth="1"
-        fill="none"
-        fillRule="evenodd"
-      >
-        <g
-          id="Group-52-Copy"
-          transform="translate(38.500000, 38.000000) rotate(-360.000000) translate(-38.500000, -38.000000)"
-        >
-          <g id="Group-3" transform="translate(1.099322, 4.360770)">
-            <mask id="mask-2" fill="white">
-              <use xlinkHref="#path-1" />
-            </mask>
-            <g id="Clip-2" />
-            <polygon
-              id="Fill-1"
-              fill="#AA572A"
-              mask="url(#mask-2)"
-              points="-5.49661129 46.8782804 78.0518803 46.8782804 78.0518803 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-6" transform="translate(10.993223, 9.811733)">
-            <mask id="mask-4" fill="white">
-              <use xlinkHref="#path-3" />
-            </mask>
-            <g id="Clip-5" />
-            <polygon
-              id="Fill-4"
-              fill="#904821"
-              mask="url(#mask-4)"
-              points="-5.49661129 7.63134797 58.2640797 7.63134797 58.2640797 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-9" transform="translate(10.993223, 25.074429)">
-            <mask id="mask-6" fill="white">
-              <use xlinkHref="#path-5" />
-            </mask>
-            <g id="Clip-8" />
-            <polygon
-              id="Fill-7"
-              fill="#904821"
-              mask="url(#mask-6)"
-              points="-5.49661129 7.63134797 58.2640797 7.63134797 58.2640797 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-12">
-            <mask id="mask-8" fill="white">
-              <use xlinkHref="#path-7" />
-            </mask>
-            <g id="Clip-11" />
-            <polygon
-              id="Fill-10"
-              fill="#FFBC00"
-              mask="url(#mask-8)"
-              points="-5.49661129 80.6742499 81.3498471 80.6742499 81.3498471 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-15" transform="translate(15.390512, 50.148858)">
-            <mask id="mask-10" fill="white">
-              <use xlinkHref="#path-9" />
-            </mask>
-            <g id="Clip-14" />
-            <polygon
-              id="Fill-13"
-              fill="#AA572A"
-              mask="url(#mask-10)"
-              points="-5.49661129 22.8940439 50.5688239 22.8940439 50.5688239 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-18" transform="translate(15.390512, 59.960591)">
-            <mask id="mask-12" fill="white">
-              <use xlinkHref="#path-11" />
-            </mask>
-            <g id="Clip-17" />
-            <polygon
-              id="Fill-16"
-              fill="#904821"
-              mask="url(#mask-12)"
-              points="-5.4693426 8.37084739 52.3176422 8.37084739 52.3176422 -5.10026969 -5.4693426 -5.10026969"
-            />
-          </g>
-          <g id="Group-21" transform="translate(0.000000, 6.541155)">
-            <mask id="mask-14" fill="white">
-              <use xlinkHref="#path-13" />
-            </mask>
-            <g id="Clip-20" />
-            <polygon
-              id="Fill-19"
-              fill="#FFD300"
-              mask="url(#mask-14)"
-              points="-5.49661129 51.7363529 22.487912 51.7363529 22.487912 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-24" transform="translate(2.099322, 9.811733)">
-            <mask id="mask-16" fill="white">
-              <use xlinkHref="#path-15" />
-            </mask>
-            <g id="Clip-23" />
-            <polygon
-              id="Fill-22"
-              fill="#FFD300"
-              mask="url(#mask-16)"
-              points="-5.48750491 70.8625168 79.2505303 70.8625168 79.2505303 -5.45096283 -5.48750491 -5.45096283"
-            />
-          </g>
-          <g id="Group-27" transform="translate(27.483056, 31.615584)">
-            <mask id="mask-18" fill="white">
-              <use xlinkHref="#path-17" />
-            </mask>
-            <g id="Clip-26" />
-            <polygon
-              id="Fill-25"
-              fill="#FFBC00"
-              mask="url(#mask-18)"
-              points="-5.49661129 30.5253919 26.3837342 30.5253919 26.3837342 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-30" transform="translate(32.979668, 35.976355)">
-            <mask id="mask-20" fill="white">
-              <use xlinkHref="#path-19" />
-            </mask>
-            <g id="Clip-29" />
-            <polygon
-              id="Fill-28"
-              fill="#DB8500"
-              mask="url(#mask-20)"
-              points="-5.49661129 15.6260898 15.3905116 15.6260898 15.3905116 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-33" transform="translate(32.979668, 41.427318)">
-            <mask id="mask-22" fill="white">
-              <use xlinkHref="#path-21" />
-            </mask>
-            <g id="Clip-32" />
-            <polygon
-              id="Fill-31"
-              fill="#DB8500"
-              mask="url(#mask-22)"
-              points="-4.90093253 15.2626959 14.7025008 15.2626959 14.7025008 -4.58836977 -4.90093253 -4.58836977"
-            />
-          </g>
-          <g id="Group-36" transform="translate(4.397289, 39.246932)">
-            <mask id="mask-24" fill="white">
-              <use xlinkHref="#path-23" />
-            </mask>
-            <g id="Clip-35" />
-            <polygon
-              id="Fill-34"
-              fill="#F8A201"
-              mask="url(#mask-24)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-39" transform="translate(4.397289, 64.321361)">
-            <mask id="mask-26" fill="white">
-              <use xlinkHref="#path-25" />
-            </mask>
-            <g id="Clip-38" />
-            <polygon
-              id="Fill-37"
-              fill="#F8A201"
-              mask="url(#mask-26)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-42" transform="translate(65.959335, 64.321361)">
-            <mask id="mask-28" fill="white">
-              <use xlinkHref="#path-27" />
-            </mask>
-            <g id="Clip-41" />
-            <polygon
-              id="Fill-40"
-              fill="#F8A201"
-              mask="url(#mask-28)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-45" transform="translate(65.959335, 39.246932)">
-            <mask id="mask-30" fill="white">
-              <use xlinkHref="#path-29" />
-            </mask>
-            <g id="Clip-44" />
-            <polygon
-              id="Fill-43"
-              fill="#F8A201"
-              mask="url(#mask-30)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-48" transform="translate(4.397289, 16.352888)">
-            <mask id="mask-32" fill="white">
-              <use xlinkHref="#path-31" />
-            </mask>
-            <g id="Clip-47" />
-            <polygon
-              id="Fill-46"
-              fill="#F8A201"
-              mask="url(#mask-32)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-          <g id="Group-51" transform="translate(65.959335, 16.352888)">
-            <mask id="mask-34" fill="white">
-              <use xlinkHref="#path-33" />
-            </mask>
-            <g id="Clip-50" />
-            <polygon
-              id="Fill-49"
-              fill="#F8A201"
-              mask="url(#mask-34)"
-              points="-5.49661129 10.9019257 10.9932226 10.9019257 10.9932226 -5.45096283 -5.49661129 -5.45096283"
-            />
-          </g>
-        </g>
-      </g>
-    </svg>
-  );
-};
-
-const XpProgressSection = () => {
-  const xpToday = useBoundStore((x) => x.xpToday());
-  const goalXp = useBoundStore((x) => x.goalXp);
-  return (
-    <article className="flex flex-col gap-5 rounded-2xl border-2 border-gray-200 p-6 font-bold text-gray-700">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl">XP Progress</h2>
-        <Link href="/settings/coach" className="uppercase text-blue-400">
-          Edit goal
-        </Link>
-      </div>
-      <div className="flex gap-5">
-        <TreasureClosedSvg />
-        <div className="flex grow flex-col justify-around">
-          <h3 className="font-normal text-gray-500">Daily goal</h3>
-          <div className="flex items-center gap-5">
-            <div className="relative h-4 w-full grow rounded-full bg-gray-200">
-              {xpToday > 0 && (
-                <div
-                  className="absolute left-0 top-0 h-4 rounded-full bg-yellow-400"
-                  style={{ width: `${Math.min(1, xpToday / goalXp) * 100}%` }}
-                >
-                  <div className="absolute left-2 right-2 top-1 h-[6px] rounded-full bg-yellow-300"></div>
-                </div>
-              )}
-            </div>
-            <div className="text-md shrink-0 font-normal text-gray-400">
-              {xpToday}/{goalXp} XP
-            </div>
-          </div>
-        </div>
-      </div>
-    </article>
   );
 };
 
@@ -626,18 +346,18 @@ const CreateAProfileSection = ({
 }) => {
   return (
     <article className="flex flex-col gap-5 rounded-2xl border-2 border-gray-200 p-6 font-bold">
-      <h2 className="text-xl">Create a profile to save your progress!</h2>
+      <h2 className="text-xl">¡Crea un perfil para guardar tu progreso!</h2>
       <button
         className="rounded-2xl border-b-4 border-green-600 bg-green-500 py-3 uppercase text-white transition hover:border-green-500 hover:bg-green-400"
         onClick={() => setLoginScreenState("SIGNUP")}
       >
-        Create a profile
+        Crear perfil
       </button>
       <button
         className="rounded-2xl border-b-4 border-blue-500 bg-blue-400 py-3 uppercase text-white transition hover:border-blue-400 hover:bg-blue-300"
         onClick={() => setLoginScreenState("LOGIN")}
       >
-        Sign in
+        Iniciar sesión
       </button>
     </article>
   );

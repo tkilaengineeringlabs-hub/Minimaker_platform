@@ -3,7 +3,7 @@ import { useBoundStore } from "~/hooks/useBoundStore";
 
 export const useLeaderboardUsers = () => {
   const xpThisWeek = useBoundStore((x) => x.xpThisWeek());
-  const name = useBoundStore((x) => x.name);
+  const name = useBoundStore((x) => x.name.trim() || "Maker");
   const userInfo = {
     name,
     xp: xpThisWeek,

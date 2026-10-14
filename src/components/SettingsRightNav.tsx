@@ -8,13 +8,13 @@ const useSettingsPages = () => {
   const loggedIn = useBoundStore((x) => x.loggedIn);
   return loggedIn
     ? ([
-        { title: "Account", href: "/settings/account" },
-        { title: "Sound", href: "/settings/sound" },
-        { title: "Edit Daily Goal", href: "/settings/coach" },
+        { title: "Cuenta", href: "/settings/account" },
+        { title: "Notificaciones", href: "/settings/sound" },
+        { title: "Meta diaria", href: "/settings/coach" },
       ] as const)
     : ([
-        { title: "Sound", href: "/settings/sound" },
-        { title: "Edit Daily Goal", href: "/settings/coach" },
+        { title: "Notificaciones", href: "/settings/sound" },
+        { title: "Meta diaria", href: "/settings/coach" },
       ] as const);
 };
 

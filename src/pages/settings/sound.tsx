@@ -23,17 +23,17 @@ const Sound: NextPage = () => {
 
   const soundOptions = [
     {
-      title: "Sound effects",
+      title: "Sonidos de la app",
       value: localSoundEffects,
       setValue: setLocalSoundEffects,
     },
     {
-      title: "Speaking exercises",
+      title: "Actividades guiadas",
       value: localSpeakingExercises,
       setValue: setLocalSpeakingExercises,
     },
     {
-      title: "Listening exercises",
+      title: "Instrucciones con audio",
       value: localListeningExercises,
       setValue: setLocalListeningExercises,
     },
@@ -46,7 +46,9 @@ const Sound: NextPage = () => {
       <BottomBar selectedTab={null} />
       <div className="mx-auto flex flex-col gap-5 px-4 py-20 sm:py-10 md:pl-28 lg:pl-72">
         <div className="mx-auto flex w-full max-w-xl items-center justify-between lg:max-w-4xl">
-          <h1 className="text-lg font-bold text-gray-800 sm:text-2xl">Sound</h1>
+          <h1 className="text-lg font-bold text-gray-800 sm:text-2xl">
+            Notificaciones
+          </h1>
           <button
             className="rounded-2xl border-b-4 border-green-600 bg-green-500 px-5 py-3 font-bold uppercase text-white transition hover:brightness-110 disabled:border-b-0 disabled:bg-gray-200 disabled:text-gray-400 disabled:hover:brightness-100"
             onClick={() => {
@@ -60,7 +62,7 @@ const Sound: NextPage = () => {
               localListeningExercises === listeningExercises
             }
           >
-            Save changes
+            Guardar cambios
           </button>
         </div>
         <div className="flex justify-center gap-12">
@@ -101,7 +103,7 @@ const Sound: NextPage = () => {
               );
             })}
           </div>
-          <SettingsRightNav selectedTab="Sound" />
+          <SettingsRightNav selectedTab="Notificaciones" />
         </div>
       </div>
     </div>

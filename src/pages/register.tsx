@@ -1,73 +1,205 @@
 import type { NextPage } from "next";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useState } from "react";
+import { FacebookLogoSvg, GoogleLogoSvg } from "~/components/LoginScreen";
 import { LanguageHeader } from "~/components/LanguageHeader";
-import _bgSnow from "../../public/bg-snow.svg";
-import type { StaticImageData } from "next/image";
-
-const bgSnow = _bgSnow as StaticImageData;
-
-const courses = [
-  { 
-    name: "Starter", 
-    desc: "Descubre cómo funciona la tecnología y empieza a crear",
-    icon: "/icons/mic.png" 
-  },
-  { 
-    name: "Maker", 
-    desc: "Construye proyectos reales con código y hardware",
-    icon: "/icons/ardui.png" 
-  },
-  { 
-    name: "Builder", 
-    desc: "Diseña sistemas y automatiza el mundo real",
-    icon: "/icons/raspb.png" 
-  },
-  { 
-    name: "Pro", 
-    desc: "Crea soluciones completas como un ingeniero",
-    icon: "/icons/microbit.svg" 
-  },
-  
-];
+import { useBoundStore } from "~/hooks/useBoundStore";
+import { isSupabaseConfigured } from "~/lib/supabase";
+import {
+  signInWithOAuthProvider,
+  signUpWithEmail,
+} from "~/services/authService";
+import type { UserRole } from "~/types/supabase";
 
 const Register: NextPage = () => {
+  const router = useRouter();
+  const logIn = useBoundStore((x) => x.logIn);
+  const setName = useBoundStore((x) => x.setName);
+  const setUsername = useBoundStore((x) => x.setUsername);
+
+  const [role, setRole] = useState<Exclude<UserRole, "school_admin">>(
+    "student",
+  );
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const nextRoute = role === "teacher" ? "/teacher" : "/learn";
+
+  const submitRegistration = async () => {
+    setMessage("");
+
+    const cleanName = displayName.trim();
+    const cleanEmail = email.trim();
+
+    if (cleanName === "" || cleanEmail === "" || password === "") {
+      setMessage("Completa nombre, correo y contraseña.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Las contraseñas no coinciden.");
+      return;
+    }
+
+    if (isSupabaseConfigured) {
+      setLoading(true);
+      const result = await signUpWithEmail({
+        email: cleanEmail,
+        password,
+        displayName: cleanName,
+        role,
+      });
+      setLoading(false);
+
+      if (!result.ok) {
+        setMessage(result.message);
+        return;
+      }
+
+      void router.push(nextRoute);
+      return;
+    }
+
+    setName(cleanName);
+    setUsername(cleanName.replace(/ +/g, "-").toLowerCase());
+    logIn();
+    void router.push(nextRoute);
+  };
+
+  const registerWithOAuth = async (provider: "google" | "facebook") => {
+    setMessage("");
+
+    if (!isSupabaseConfigured) {
+      setMessage("Configura Supabase para registrarte con este proveedor.");
+      return;
+    }
+
+    const result = await signInWithOAuthProvider(provider);
+    if (!result.ok) setMessage(result.message);
+  };
+
   return (
-    <main
-      className="flex min-h-screen flex-col items-center bg-[#235390] text-white"
-      style={{ backgroundImage: `url(${bgSnow.src})` }}
-    >
+    <main className="min-h-screen bg-cyan-50">
       <LanguageHeader />
 
-      <div className="container flex grow flex-col items-center justify-center gap-20 px-4 py-16">
-        
-        <h1 className="mt-20 text-center text-3xl font-extrabold tracking-tight text-white">
-          ¿Qué quieres aprender?
-        </h1>
+      <section className="mx-auto flex min-h-[calc(100vh-70px)] w-full max-w-5xl flex-col items-center justify-center gap-8 px-4 py-10 md:flex-row">
+        <div className="max-w-md text-center md:text-left">
+          <div className="mx-auto mb-5 flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-6xl shadow-sm md:mx-0">
+            🤖
+          </div>
+          <h1 className="text-4xl font-black text-gray-800">
+            Crea tu cuenta Maker
+          </h1>
+          <p className="mt-3 text-lg font-bold text-gray-500">
+            Guarda tu progreso, desbloquea kits y sigue construyendo proyectos.
+          </p>
+        </div>
 
-        <section className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-x-2 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          
-          {courses.map((course) => (
-            <Link
-              key={course.name}
-              href="/learn"
-              className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-b-4 border-gray-400 px-5 py-8 text-xl font-bold hover:bg-gray-300 hover:bg-opacity-20 transition"
+        <section className="w-full max-w-md rounded-3xl border-2 border-b-4 border-gray-200 bg-white p-6 shadow-sm">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Alumno", value: "student" },
+              { label: "Profesor", value: "teacher" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                className={[
+                  "rounded-2xl border-2 border-b-4 px-4 py-3 font-black uppercase transition",
+                  role === option.value
+                    ? "border-[#00838f] bg-[#00acc1] text-white"
+                    : "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100",
+                ].join(" ")}
+                onClick={() =>
+                  setRole(option.value as Exclude<UserRole, "school_admin">)
+                }
+              >
+                Soy {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3">
+            <input
+              className="rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3 font-bold text-gray-800 outline-none transition focus:border-[#00acc1] focus:bg-white"
+              placeholder="Nombre"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+            <input
+              className="rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3 font-bold text-gray-800 outline-none transition focus:border-[#00acc1] focus:bg-white"
+              placeholder="Correo electrónico"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <input
+              className="rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3 font-bold text-gray-800 outline-none transition focus:border-[#00acc1] focus:bg-white"
+              placeholder="Contraseña"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <input
+              className="rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3 font-bold text-gray-800 outline-none transition focus:border-[#00acc1] focus:bg-white"
+              placeholder="Confirmar contraseña"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+            />
+          </div>
+
+          {message !== "" && (
+            <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-500">
+              {message}
+            </p>
+          )}
+
+          <button
+            className="mt-5 w-full rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] px-4 py-3 font-black uppercase text-white transition hover:brightness-105"
+            onClick={() => void submitRegistration()}
+            disabled={loading}
+          >
+            {loading ? "Cargando..." : "Crear cuenta"}
+          </button>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-[2px] grow bg-gray-200" />
+            <span className="text-xs font-black uppercase text-gray-400">
+              Correo electrónico
+            </span>
+            <div className="h-[2px] grow bg-gray-200" />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              className="flex items-center justify-center gap-3 rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 font-black text-blue-600 transition hover:bg-gray-50"
+              onClick={() => void registerWithOAuth("google")}
             >
-              <img
-                src={course.icon}
-                alt={course.name}
-                className="w-17 h-17 object-contain"
-              />
+              <GoogleLogoSvg className="h-5 w-5" />
+              Registrarme con Google
+            </button>
+            <button
+              className="flex items-center justify-center gap-3 rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 font-black text-blue-900 transition hover:bg-gray-50"
+              onClick={() => void registerWithOAuth("facebook")}
+            >
+              <FacebookLogoSvg className="h-5 w-5" />
+              Registrarme con Facebook
+            </button>
+          </div>
 
-              <span>{course.name}</span>
-
-              <p className="text-xs text-center opacity-80 max-w-[160px]">
-                {course.desc}
-              </p>
+          <p className="mt-5 text-center text-sm font-bold text-gray-500">
+            ¿Ya tienes una cuenta?{" "}
+            <Link className="uppercase text-[#00acc1]" href="/?login">
+              Iniciar sesión
             </Link>
-          ))}
-
+          </p>
         </section>
-      </div>
+      </section>
     </main>
   );
 };

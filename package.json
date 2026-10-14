@@ -1,5 +1,5 @@
 {
-  "name": "react-duolingo",
+  "name": "mini-maker-labs",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "@t3-oss/env-nextjs": "^0.7.3",
     "dayjs": "^1.11.13",
     "next": "^14.2.11",

@@ -11,7 +11,7 @@ export type Tile =
 export type Unit = {
   unitNumber: number;
   description: string;
-  backgroundColor: string; // 🔥 FIX (antes rompía todo)
+  backgroundColor: string;
   textColor: string;
   borderColor: string;
   tiles: Tile[];
@@ -21,56 +21,49 @@ export type Unit = {
 export const units: readonly Unit[] = [
   {
     unitNumber: 1,
-    description: "Despierta tu mente maker",
+    description: "Tu primer circuito",
     backgroundColor: "bg-[#00acc1]",
     textColor: "text-gray-500",
     borderColor: "border-[#00838f]",
     tiles: [
-      { type: "chip", description: "Lección: ¿Qué es un sistema?" },
-      { type: "book", description: "Electricidad básica" },
-      { type: "chip", description: "Mini desafío mental" },
+      { type: "chip", description: "Conoce tu Kit" },
+      { type: "book", description: "¿Qué es la electricidad?" },
+      { type: "chip", description: "Identifica los componentes" },
       { type: "treasure" },
-      { type: "book", description: "Proyecto guiado" },
-      { type: "trophy", description: "Logro + verificación real" },
+      { type: "book", description: "Enciende tu primer LED" },
+      { type: "trophy", description: "Reto: construye un circuito funcional" },
     ],
   },
   {
     unitNumber: 2,
-    description: "Empieza a construir de verdad",
+    description: "Domina los motores",
     backgroundColor: "bg-[#00acc1]",
     textColor: "text-gray-500",
     borderColor: "border-[#00838f]",
     tiles: [
-      { type: "fast-forward", description: "Tu primer circuito funcional" },
-      { type: "dumbbell", description: "Entrenamiento: conecta y prueba" },
-      { type: "book", description: "Entradas y salidas (inputs/outputs)" },
+      { type: "chip", description: "¿Qué es un motor?" },
+      { type: "book", description: "Polaridad y dirección" },
+      { type: "chip", description: "Controla un motor" },
       { type: "treasure" },
-      { type: "chip", description: "Controla luz, movimiento y señales" },
-      { type: "book", description: "Errores reales y cómo solucionarlos" },
-      { type: "chip", description: "Haz que tu sistema responda solo" },
-      { type: "book", description: "Interacción con el mundo real" },
-      { type: "treasure" },
-      { type: "dumbbell", description: "Reto técnico guiado" },
-      { type: "trophy", description: "Proyecto: construye tu primer prototipo" },
+      { type: "book", description: "Construye un ventilador" },
+      { type: "dumbbell", description: "Soluciona fallas" },
+      { type: "trophy", description: "Proyecto: vehículo sencillo" },
     ],
   },
   {
     unitNumber: 3,
-    description: "Piensa como ingeniero",
+    description: "Descubre los sensores",
     backgroundColor: "bg-[#00acc1]",
     textColor: "text-gray-500",
     borderColor: "border-[#00838f]",
     tiles: [
-      { type: "fast-forward", description: "Diseña sistemas completos" },
-      { type: "book", description: "Estructura: cómo organizar tu lógica" },
-      { type: "chip", description: "Automatiza decisiones" },
+      { type: "chip", description: "¿Qué es un sensor?" },
+      { type: "book", description: "Entradas y salidas" },
+      { type: "chip", description: "Sensor de luz" },
       { type: "treasure" },
-      { type: "book", description: "Optimiza lo que ya construiste" },
-      { type: "chip", description: "Hazlo más rápido, más inteligente" },
-      { type: "treasure" },
-      { type: "dumbbell", description: "Simulación de problema real" },
-      { type: "book", description: "Pensamiento modular" },
-      { type: "trophy", description: "Proyecto final: sistema funcional completo" },
+      { type: "book", description: "Sensor de distancia" },
+      { type: "dumbbell", description: "Automatización" },
+      { type: "trophy", description: "Proyecto: alarma inteligente" },
     ],
   },
 ];

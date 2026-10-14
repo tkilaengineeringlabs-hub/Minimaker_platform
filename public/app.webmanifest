@@ -1,11 +1,11 @@
 {
-  "name": "React Duolingo Clone",
-  "short_name": "Duoclone",
+  "name": "Mini Maker Labs",
+  "short_name": "Mini Maker",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A0",
-  "theme_color": "#0A0",
-  "description": "A React Duolingo clone web app written with React, TypeScript, Next.js, TailwindCSS, and Zustand.",
+  "background_color": "#00acc1",
+  "theme_color": "#00acc1",
+  "description": "Plataforma educativa de electrónica, robótica y proyectos Maker.",
   "icons": [
     {
       "src": "/favicon-16x16.png",

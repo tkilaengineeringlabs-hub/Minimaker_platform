@@ -1,47 +1,73 @@
 import type { NextPage } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  AppleSvg,
   BigCloseSvg,
-  BoySvg,
   CloseSvg,
   DoneSvg,
   LessonFastForwardEndFailSvg,
   LessonFastForwardEndPassSvg,
   LessonFastForwardStartSvg,
-  LessonTopBarEmptyHeart,
-  LessonTopBarHeart,
-  WomanSvg,
 } from "~/components/Svgs";
-import womanPng from "../../public/woman.png";
 import { useBoundStore } from "~/hooks/useBoundStore";
 import { useRouter } from "next/router";
+import {
+  defaultLearningPathId,
+  getLearningPathById,
+  type LearningPathId,
+} from "~/utils/learningPaths";
+import { getKitById, isKitUnlocked, readUnlockedKitIds } from "~/utils/kits";
+import { saveLearningProgress } from "~/services/progressService";
 
-const lessonProblem1 = {
-  type: "SELECT_1_OF_3",
-  question: `Which one of these is "the apple"?`,
-  answers: [
-    { icon: <AppleSvg />, name: "la manzana" },
-    { icon: <BoySvg />, name: "el niño" },
-    { icon: <WomanSvg />, name: "la mujer" },
-  ],
-  correctAnswer: 0,
-} as const;
+const makerLessonXp = 10;
+const makerLessonSteps = 5;
 
-const lessonProblem2 = {
-  type: "WRITE_IN_ENGLISH",
-  question: "El niño",
-  answerTiles: ["woman", "milk", "water", "I", "The", "boy"],
-  correctAnswer: [4, 5],
-} as const;
+const getQueryValue = (
+  value: string | string[] | undefined,
+): string | undefined => (typeof value === "string" ? value : undefined);
 
-const lessonProblems = [lessonProblem1, lessonProblem2];
-
-const numbersEqual = (a: readonly number[], b: readonly number[]): boolean => {
-  return a.length === b.length && a.every((_, i) => a[i] === b[i]);
+const getLessonPathId = (
+  path: string | string[] | undefined,
+): LearningPathId => {
+  const learningPath = getLearningPathById(getQueryValue(path));
+  return learningPath?.id ?? defaultLearningPathId;
 };
+
+const getLearnHref = (pathId: LearningPathId): string =>
+  `/learn?path=${pathId}`;
+
+const kitParts = [
+  { name: "LED", description: "Produce luz" },
+  { name: "Motor", description: "Produce movimiento" },
+  { name: "Cable", description: "Transporta electricidad" },
+  { name: "Interruptor", description: "Abre o cierra un circuito" },
+] as const;
+
+type MakerQuiz = {
+  question: string;
+  options: readonly string[];
+  correctAnswer: string;
+  correctFeedback: string;
+  incorrectFeedback: string;
+};
+
+const makerQuizzes = [
+  {
+    question: "¿Cuál de estos componentes puede producir luz?",
+    options: ["LED", "Motor", "Cable", "Interruptor"],
+    correctAnswer: "LED",
+    correctFeedback: "¡Correcto! Un LED convierte energía eléctrica en luz.",
+    incorrectFeedback: "Inténtalo otra vez.",
+  },
+  {
+    question: "¿Qué componente usarías si quieres que un robot se mueva?",
+    options: ["LED", "Motor", "Resistencia", "Cable"],
+    correctAnswer: "Motor",
+    correctFeedback:
+      "¡Exacto! Los motores convierten energía eléctrica en movimiento.",
+    incorrectFeedback: "Inténtalo otra vez.",
+  },
+] as const satisfies readonly MakerQuiz[];
 
 const formatTime = (timeMs: number): string => {
   const seconds = Math.floor(timeMs / 1000) % 60;
@@ -58,15 +84,15 @@ const formatTime = (timeMs: number): string => {
 
 const Lesson: NextPage = () => {
   const router = useRouter();
+  const pathId = getLessonPathId(router.query.path);
 
-  const [lessonProblem, setLessonProblem] = useState(0);
+  const [lessonStep, setLessonStep] = useState(0);
   const [correctAnswerCount, setCorrectAnswerCount] = useState(0);
   const [incorrectAnswerCount, setIncorrectAnswerCount] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<null | number>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [correctAnswerShown, setCorrectAnswerShown] = useState(false);
   const [quitMessageShown, setQuitMessageShown] = useState(false);
-
-  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [checkedKitParts, setCheckedKitParts] = useState<string[]>([]);
 
   const startTime = useRef(Date.now());
   const endTime = useRef(startTime.current + 1000 * 60 * 3 + 1000 * 33);
@@ -74,23 +100,40 @@ const Lesson: NextPage = () => {
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [reviewLessonShown, setReviewLessonShown] = useState(false);
 
-  const problem = lessonProblems[lessonProblem] ?? lessonProblem1;
-
-  const totalCorrectAnswersNeeded = 2;
-
   const [isStartingLesson, setIsStartingLesson] = useState(true);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const learningPath = getLearningPathById(pathId);
+    const kit =
+      learningPath !== undefined ? getKitById(learningPath.kitId) : undefined;
+    const routeIsUnlocked =
+      kit !== undefined && isKitUnlocked(kit, readUnlockedKitIds());
+
+    if (!routeIsUnlocked) {
+      void router.replace(getLearnHref(defaultLearningPathId));
+    }
+  }, [pathId, router]);
+
   const hearts =
     "fast-forward" in router.query &&
     !isNaN(Number(router.query["fast-forward"]))
       ? 3 - incorrectAnswerCount
       : null;
 
-  const { correctAnswer } = problem;
-  const isAnswerCorrect = Array.isArray(correctAnswer)
-    ? numbersEqual(selectedAnswers, correctAnswer)
-    : selectedAnswer === correctAnswer;
+  const quiz =
+    lessonStep === 1
+      ? makerQuizzes[0]
+      : lessonStep === 4
+        ? makerQuizzes[1]
+        : null;
+  const isAnswerCorrect =
+    quiz !== null ? selectedAnswer === quiz.correctAnswer : false;
 
   const onCheckAnswer = () => {
+    if (quiz === null || selectedAnswer === null) return;
+
     setCorrectAnswerShown(true);
     if (isAnswerCorrect) {
       setCorrectAnswerCount((x) => x + 1);
@@ -100,32 +143,28 @@ const Lesson: NextPage = () => {
     setQuestionResults((questionResults) => [
       ...questionResults,
       {
-        question: problem.question,
-        yourResponse:
-          problem.type === "SELECT_1_OF_3"
-            ? problem.answers[selectedAnswer ?? 0]?.name ?? ""
-            : selectedAnswers.map((i) => problem.answerTiles[i]).join(" "),
-        correctResponse:
-          problem.type === "SELECT_1_OF_3"
-            ? problem.answers[problem.correctAnswer].name
-            : problem.correctAnswer
-                .map((i) => problem.answerTiles[i])
-                .join(" "),
+        question: quiz.question,
+        yourResponse: selectedAnswer,
+        correctResponse: quiz.correctAnswer,
       },
     ]);
   };
 
-  const onFinish = () => {
+  const goToNextStep = () => {
     setSelectedAnswer(null);
-    setSelectedAnswers([]);
     setCorrectAnswerShown(false);
-    setLessonProblem((x) => (x + 1) % lessonProblems.length);
+    setLessonStep((x) => x + 1);
     endTime.current = Date.now();
   };
 
-  const onSkip = () => {
+  const onFinishQuestion = () => {
+    if (isAnswerCorrect) {
+      goToNextStep();
+      return;
+    }
+
     setSelectedAnswer(null);
-    setCorrectAnswerShown(true);
+    setCorrectAnswerShown(false);
   };
 
   const unitNumber = Number(router.query["fast-forward"]);
@@ -134,6 +173,7 @@ const Lesson: NextPage = () => {
     return (
       <LessonFastForwardEndFail
         unitNumber={unitNumber}
+        pathId={pathId}
         reviewLessonShown={reviewLessonShown}
         setReviewLessonShown={setReviewLessonShown}
         questionResults={questionResults}
@@ -145,11 +185,12 @@ const Lesson: NextPage = () => {
     hearts !== null &&
     hearts >= 0 &&
     !correctAnswerShown &&
-    correctAnswerCount >= totalCorrectAnswersNeeded
+    correctAnswerCount >= makerQuizzes.length
   ) {
     return (
       <LessonFastForwardEndPass
         unitNumber={unitNumber}
+        pathId={pathId}
         reviewLessonShown={reviewLessonShown}
         setReviewLessonShown={setReviewLessonShown}
         questionResults={questionResults}
@@ -161,32 +202,47 @@ const Lesson: NextPage = () => {
     return (
       <LessonFastForwardStart
         unitNumber={unitNumber}
+        pathId={pathId}
         setIsStartingLesson={setIsStartingLesson}
       />
     );
   }
 
-  if (correctAnswerCount >= totalCorrectAnswersNeeded && !correctAnswerShown) {
+  if (lessonStep >= makerLessonSteps && !correctAnswerShown) {
     return (
       <LessonComplete
         correctAnswerCount={correctAnswerCount}
         incorrectAnswerCount={incorrectAnswerCount}
+        xpAward={makerLessonXp}
         startTime={startTime}
         endTime={endTime}
         reviewLessonShown={reviewLessonShown}
         setReviewLessonShown={setReviewLessonShown}
         questionResults={questionResults}
+        pathId={pathId}
       />
     );
   }
 
-  switch (problem.type) {
-    case "SELECT_1_OF_3": {
+  switch (lessonStep) {
+    case 0:
       return (
-        <ProblemSelect1Of3
-          problem={problem}
-          correctAnswerCount={correctAnswerCount}
-          totalCorrectAnswersNeeded={totalCorrectAnswersNeeded}
+        <MakerIntroStep
+          lessonStep={lessonStep}
+          totalSteps={makerLessonSteps}
+          quitMessageShown={quitMessageShown}
+          setQuitMessageShown={setQuitMessageShown}
+          hearts={hearts}
+          onContinue={goToNextStep}
+        />
+      );
+
+    case 1:
+      return (
+        <MakerQuizStep
+          lessonStep={lessonStep}
+          totalSteps={makerLessonSteps}
+          quiz={makerQuizzes[0]}
           selectedAnswer={selectedAnswer}
           setSelectedAnswer={setSelectedAnswer}
           quitMessageShown={quitMessageShown}
@@ -194,32 +250,55 @@ const Lesson: NextPage = () => {
           setQuitMessageShown={setQuitMessageShown}
           isAnswerCorrect={isAnswerCorrect}
           onCheckAnswer={onCheckAnswer}
-          onFinish={onFinish}
-          onSkip={onSkip}
+          onFinish={onFinishQuestion}
           hearts={hearts}
         />
       );
-    }
 
-    case "WRITE_IN_ENGLISH": {
+    case 2:
       return (
-        <ProblemWriteInEnglish
-          problem={problem}
-          correctAnswerCount={correctAnswerCount}
-          totalCorrectAnswersNeeded={totalCorrectAnswersNeeded}
-          selectedAnswers={selectedAnswers}
-          setSelectedAnswers={setSelectedAnswers}
+        <MakerPartsStep
+          lessonStep={lessonStep}
+          totalSteps={makerLessonSteps}
+          quitMessageShown={quitMessageShown}
+          setQuitMessageShown={setQuitMessageShown}
+          hearts={hearts}
+          onContinue={goToNextStep}
+        />
+      );
+
+    case 3:
+      return (
+        <MakerChecklistStep
+          lessonStep={lessonStep}
+          totalSteps={makerLessonSteps}
+          checkedKitParts={checkedKitParts}
+          setCheckedKitParts={setCheckedKitParts}
+          quitMessageShown={quitMessageShown}
+          setQuitMessageShown={setQuitMessageShown}
+          hearts={hearts}
+          onContinue={goToNextStep}
+        />
+      );
+
+    case 4:
+    default:
+      return (
+        <MakerQuizStep
+          lessonStep={lessonStep}
+          totalSteps={makerLessonSteps}
+          quiz={makerQuizzes[1]}
+          selectedAnswer={selectedAnswer}
+          setSelectedAnswer={setSelectedAnswer}
           quitMessageShown={quitMessageShown}
           correctAnswerShown={correctAnswerShown}
           setQuitMessageShown={setQuitMessageShown}
           isAnswerCorrect={isAnswerCorrect}
           onCheckAnswer={onCheckAnswer}
-          onFinish={onFinish}
-          onSkip={onSkip}
+          onFinish={onFinishQuestion}
           hearts={hearts}
         />
       );
-    }
   }
 };
 
@@ -236,12 +315,15 @@ const ProgressBar = ({
   setQuitMessageShown: (isShown: boolean) => void;
   hearts: null | number;
 }) => {
+  const router = useRouter();
+  const pathId = getLessonPathId(router.query.path);
+
   return (
     <header className="flex items-center gap-4">
       {correctAnswerCount === 0 ? (
-        <Link href="/learn" className="text-gray-400">
+        <Link href={getLearnHref(pathId)} className="text-gray-400">
           <CloseSvg />
-          <span className="sr-only">Exit lesson</span>
+          <span className="sr-only">Salir de la lección</span>
         </Link>
       ) : (
         <button
@@ -249,7 +331,7 @@ const ProgressBar = ({
           onClick={() => setQuitMessageShown(true)}
         >
           <CloseSvg />
-          <span className="sr-only">Exit lesson</span>
+          <span className="sr-only">Salir de la lección</span>
         </button>
       )}
       <div
@@ -262,7 +344,7 @@ const ProgressBar = ({
         <div
           className={
             "h-full rounded-full bg-green-500 transition-all duration-700 " +
-            (correctAnswerCount > 0 ? "px-2 pt-1 " : "")
+            (correctAnswerCount > 0 ? "px-2 pt-1" : "")
           }
           style={{
             width: `${(correctAnswerCount / totalCorrectAnswersNeeded) * 100}%`,
@@ -272,12 +354,22 @@ const ProgressBar = ({
         </div>
       </div>
       {hearts !== null &&
-        [1, 2, 3].map((heart) => {
-          if (heart <= hearts) {
-            return <LessonTopBarHeart key={heart} />;
-          }
-          return <LessonTopBarEmptyHeart key={heart} />;
-        })}
+        [1, 2, 3].map((charge) => (
+          <span
+            key={charge}
+            className={[
+              "flex h-8 w-8 items-center justify-center rounded-full border-2 text-lg",
+              charge <= hearts
+                ? "border-[#00acc1] bg-cyan-50 text-[#00838f]"
+                : "border-gray-200 bg-gray-50 text-gray-300",
+            ].join(" ")}
+            aria-label={
+              charge <= hearts ? "Carga disponible" : "Carga usada"
+            }
+          >
+            ⚡
+          </span>
+        ))}
     </header>
   );
 };
@@ -289,6 +381,9 @@ const QuitMessage = ({
   quitMessageShown: boolean;
   setQuitMessageShown: (isShown: boolean) => void;
 }) => {
+  const router = useRouter();
+  const pathId = getLessonPathId(router.query.path);
+
   return (
     <>
       <div
@@ -298,7 +393,7 @@ const QuitMessage = ({
             : "pointer-events-none fixed bottom-0 left-0 right-0 top-0 z-30 bg-black bg-opacity-0 transition-all duration-300"
         }
         onClick={() => setQuitMessageShown(false)}
-        aria-label="Close quit message"
+        aria-label="Cerrar mensaje de salida"
         role="button"
       ></div>
 
@@ -312,24 +407,24 @@ const QuitMessage = ({
       >
         <div className="flex grow flex-col gap-4">
           <h2 className="text-lg font-bold sm:text-2xl">
-            Are you sure you want to quit?
+            ¿Seguro que quieres salir?
           </h2>
           <p className="text-gray-500 sm:text-lg">
-            All progress for this lesson will be lost.
+            Perderás el avance de esta lección.
           </p>
         </div>
         <div className="flex grow flex-col items-center justify-center gap-4 sm:flex-row-reverse">
           <Link
-            className="flex w-full items-center justify-center rounded-2xl border-b-4 border-blue-500 bg-blue-400 py-3 font-bold uppercase text-white transition hover:brightness-105 sm:w-48"
-            href="/learn"
+            className="flex w-full items-center justify-center rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] py-3 font-bold uppercase text-white transition hover:brightness-105 sm:w-48"
+            href={getLearnHref(pathId)}
           >
-            Quit
+            Salir
           </Link>
           <button
-            className="w-full rounded-2xl py-3 font-bold uppercase text-blue-400 transition hover:brightness-90 sm:w-48 sm:border-2 sm:border-b-4 sm:border-gray-300 sm:text-gray-400 sm:hover:bg-gray-100"
+            className="w-full rounded-2xl py-3 font-bold uppercase text-[#00acc1] transition hover:brightness-90 sm:w-48 sm:border-2 sm:border-b-4 sm:border-gray-300 sm:text-gray-400 sm:hover:bg-gray-100"
             onClick={() => setQuitMessageShown(false)}
           >
-            Stay
+            Continuar
           </button>
         </div>
       </article>
@@ -337,46 +432,264 @@ const QuitMessage = ({
   );
 };
 
-const CheckAnswer = ({
+const LessonShell = ({
+  lessonStep,
+  totalSteps,
+  quitMessageShown,
+  setQuitMessageShown,
+  hearts,
+  children,
+  footer,
+}: {
+  lessonStep: number;
+  totalSteps: number;
+  quitMessageShown: boolean;
+  setQuitMessageShown: (isShown: boolean) => void;
+  hearts: number | null;
+  children: React.ReactNode;
+  footer: React.ReactNode;
+}) => {
+  return (
+    <div className="flex min-h-screen flex-col gap-5 px-4 py-5 sm:px-0 sm:py-0">
+      <div className="flex grow flex-col items-center gap-5">
+        <div className="w-full max-w-5xl sm:mt-8 sm:px-5">
+          <ProgressBar
+            correctAnswerCount={lessonStep}
+            totalCorrectAnswersNeeded={totalSteps}
+            setQuitMessageShown={setQuitMessageShown}
+            hearts={hearts}
+          />
+        </div>
+        {children}
+      </div>
+
+      {footer}
+
+      <QuitMessage
+        quitMessageShown={quitMessageShown}
+        setQuitMessageShown={setQuitMessageShown}
+      />
+    </div>
+  );
+};
+
+const ContinueFooter = ({
+  disabled = false,
+  onContinue,
+}: {
+  disabled?: boolean;
+  onContinue: () => void;
+}) => {
+  return (
+    <section className="border-gray-200 sm:border-t-2 sm:p-10">
+      <div className="mx-auto flex max-w-5xl sm:justify-end">
+        <button
+          className={
+            disabled
+              ? "grow rounded-2xl bg-gray-200 p-3 font-bold uppercase text-gray-400 sm:min-w-[180px] sm:max-w-fit sm:grow-0"
+              : "grow rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] p-3 font-bold uppercase text-white transition hover:brightness-105 sm:min-w-[180px] sm:max-w-fit sm:grow-0"
+          }
+          disabled={disabled}
+          onClick={onContinue}
+        >
+          Continuar
+        </button>
+      </div>
+    </section>
+  );
+};
+
+const MakerIntroStep = ({
+  lessonStep,
+  totalSteps,
+  quitMessageShown,
+  setQuitMessageShown,
+  hearts,
+  onContinue,
+}: {
+  lessonStep: number;
+  totalSteps: number;
+  quitMessageShown: boolean;
+  setQuitMessageShown: (isShown: boolean) => void;
+  hearts: number | null;
+  onContinue: () => void;
+}) => {
+  return (
+    <LessonShell
+      lessonStep={lessonStep}
+      totalSteps={totalSteps}
+      quitMessageShown={quitMessageShown}
+      setQuitMessageShown={setQuitMessageShown}
+      hearts={hearts}
+      footer={<ContinueFooter onContinue={onContinue} />}
+    >
+      <section className="flex max-w-2xl grow flex-col justify-center gap-5 self-center sm:px-5">
+        <div className="text-6xl">🤖</div>
+        <h1 className="text-3xl font-bold text-gray-800">Conoce tu Kit</h1>
+        <p className="text-xl font-medium leading-relaxed text-gray-500">
+          Antes de construir, vamos a descubrir las piezas que usarás en tus
+          primeros proyectos.
+        </p>
+      </section>
+    </LessonShell>
+  );
+};
+
+const MakerPartsStep = ({
+  lessonStep,
+  totalSteps,
+  quitMessageShown,
+  setQuitMessageShown,
+  hearts,
+  onContinue,
+}: {
+  lessonStep: number;
+  totalSteps: number;
+  quitMessageShown: boolean;
+  setQuitMessageShown: (isShown: boolean) => void;
+  hearts: number | null;
+  onContinue: () => void;
+}) => {
+  return (
+    <LessonShell
+      lessonStep={lessonStep}
+      totalSteps={totalSteps}
+      quitMessageShown={quitMessageShown}
+      setQuitMessageShown={setQuitMessageShown}
+      hearts={hearts}
+      footer={<ContinueFooter onContinue={onContinue} />}
+    >
+      <section className="flex max-w-2xl grow flex-col justify-center gap-8 self-center sm:px-5">
+        <h1 className="text-2xl font-bold text-gray-800 sm:text-3xl">
+          Cada pieza tiene una función
+        </h1>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {kitParts.map((part) => (
+            <article
+              key={part.name}
+              className="rounded-xl border-2 border-b-4 border-gray-200 p-5"
+            >
+              <h2 className="text-xl font-bold text-[#00acc1]">{part.name}</h2>
+              <p className="mt-2 font-medium text-gray-500">
+                {part.description}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </LessonShell>
+  );
+};
+
+const MakerChecklistStep = ({
+  lessonStep,
+  totalSteps,
+  checkedKitParts,
+  setCheckedKitParts,
+  quitMessageShown,
+  setQuitMessageShown,
+  hearts,
+  onContinue,
+}: {
+  lessonStep: number;
+  totalSteps: number;
+  checkedKitParts: string[];
+  setCheckedKitParts: React.Dispatch<React.SetStateAction<string[]>>;
+  quitMessageShown: boolean;
+  setQuitMessageShown: (isShown: boolean) => void;
+  hearts: number | null;
+  onContinue: () => void;
+}) => {
+  const allPartsChecked = checkedKitParts.length === kitParts.length;
+
+  return (
+    <LessonShell
+      lessonStep={lessonStep}
+      totalSteps={totalSteps}
+      quitMessageShown={quitMessageShown}
+      setQuitMessageShown={setQuitMessageShown}
+      hearts={hearts}
+      footer={
+        <ContinueFooter disabled={!allPartsChecked} onContinue={onContinue} />
+      }
+    >
+      <section className="flex max-w-2xl grow flex-col justify-center gap-6 self-center sm:px-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 sm:text-3xl">
+            Busca estas piezas en tu kit
+          </h1>
+          <p className="mt-3 text-lg font-medium text-gray-500">
+            Encuentra físicamente estas 4 piezas antes de continuar.
+          </p>
+        </div>
+        <div className="grid gap-3">
+          {kitParts.map((part) => {
+            const isChecked = checkedKitParts.includes(part.name);
+            return (
+              <label
+                key={part.name}
+                className={
+                  isChecked
+                    ? "flex cursor-pointer items-center gap-4 rounded-xl border-2 border-b-4 border-[#00838f] bg-cyan-50 p-4 font-bold text-[#00838f]"
+                    : "flex cursor-pointer items-center gap-4 rounded-xl border-2 border-b-4 border-gray-200 p-4 font-bold text-gray-700 hover:bg-gray-50"
+                }
+              >
+                <input
+                  type="checkbox"
+                  className="h-6 w-6 accent-[#00acc1]"
+                  checked={isChecked}
+                  onChange={() =>
+                    setCheckedKitParts((checkedParts) =>
+                      isChecked
+                        ? checkedParts.filter((name) => name !== part.name)
+                        : [...checkedParts, part.name],
+                    )
+                  }
+                />
+                {part.name}
+              </label>
+            );
+          })}
+        </div>
+      </section>
+    </LessonShell>
+  );
+};
+
+const MakerCheckAnswer = ({
   isAnswerSelected,
   isAnswerCorrect,
   correctAnswerShown,
-  correctAnswer,
+  correctFeedback,
+  incorrectFeedback,
   onCheckAnswer,
   onFinish,
-  onSkip,
 }: {
   isAnswerSelected: boolean;
   isAnswerCorrect: boolean;
   correctAnswerShown: boolean;
-  correctAnswer: string;
+  correctFeedback: string;
+  incorrectFeedback: string;
   onCheckAnswer: () => void;
   onFinish: () => void;
-  onSkip: () => void;
 }) => {
   return (
     <>
       <section className="border-gray-200 sm:border-t-2 sm:p-10">
-        <div className="mx-auto flex max-w-5xl sm:justify-between">
-          <button
-            className="hidden rounded-2xl border-2 border-b-4 border-gray-200 bg-white p-3 font-bold uppercase text-gray-400 transition hover:border-gray-300 hover:bg-gray-200 sm:block sm:min-w-[150px] sm:max-w-fit"
-            onClick={onSkip}
-          >
-            Skip
-          </button>
-          {!isAnswerSelected ? (
+        <div className="mx-auto flex max-w-5xl sm:justify-end">
+          {!isAnswerSelected || correctAnswerShown ? (
             <button
-              className="grow rounded-2xl bg-gray-200 p-3 font-bold uppercase text-gray-400 sm:min-w-[150px] sm:max-w-fit sm:grow-0"
+              className="grow rounded-2xl bg-gray-200 p-3 font-bold uppercase text-gray-400 sm:min-w-[180px] sm:max-w-fit sm:grow-0"
               disabled
             >
-              Check
+              Comprobar
             </button>
           ) : (
             <button
               onClick={onCheckAnswer}
-              className="grow rounded-2xl border-b-4 border-green-600 bg-green-500 p-3 font-bold uppercase text-white sm:min-w-[150px] sm:max-w-fit sm:grow-0"
+              className="grow rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] p-3 font-bold uppercase text-white sm:min-w-[180px] sm:max-w-fit sm:grow-0"
             >
-              Check
+              Comprobar
             </button>
           )}
         </div>
@@ -398,7 +711,7 @@ const CheckAnswer = ({
                 <div className="hidden rounded-full bg-white p-5 text-green-500 sm:block">
                   <DoneSvg />
                 </div>
-                <div className="text-2xl">Good job!</div>
+                <div className="text-2xl">{correctFeedback}</div>
               </div>
             ) : (
               <div className="mb-2 flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -406,8 +719,7 @@ const CheckAnswer = ({
                   <BigCloseSvg />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <div className="text-2xl">Correct solution:</div>{" "}
-                  <div className="text-sm font-normal">{correctAnswer}</div>
+                  <div className="text-2xl">{incorrectFeedback}</div>
                 </div>
               </div>
             )}
@@ -420,7 +732,7 @@ const CheckAnswer = ({
                 : "w-full rounded-2xl border-b-4 border-red-600 bg-red-500 p-3 font-bold uppercase text-white transition hover:brightness-105 sm:min-w-[150px] sm:max-w-fit"
             }
           >
-            Continue
+            Continuar
           </button>
         </div>
       </div>
@@ -428,10 +740,10 @@ const CheckAnswer = ({
   );
 };
 
-const ProblemSelect1Of3 = ({
-  problem,
-  correctAnswerCount,
-  totalCorrectAnswersNeeded,
+const MakerQuizStep = ({
+  lessonStep,
+  totalSteps,
+  quiz,
   selectedAnswer,
   setSelectedAnswer,
   quitMessageShown,
@@ -440,258 +752,135 @@ const ProblemSelect1Of3 = ({
   isAnswerCorrect,
   onCheckAnswer,
   onFinish,
-  onSkip,
   hearts,
 }: {
-  problem: typeof lessonProblem1;
-  correctAnswerCount: number;
-  totalCorrectAnswersNeeded: number;
-  selectedAnswer: number | null;
-  setSelectedAnswer: React.Dispatch<React.SetStateAction<number | null>>;
+  lessonStep: number;
+  totalSteps: number;
+  quiz: MakerQuiz;
+  selectedAnswer: string | null;
+  setSelectedAnswer: React.Dispatch<React.SetStateAction<string | null>>;
   correctAnswerShown: boolean;
   quitMessageShown: boolean;
-  setQuitMessageShown: React.Dispatch<React.SetStateAction<boolean>>;
+  setQuitMessageShown: (isShown: boolean) => void;
   isAnswerCorrect: boolean;
   onCheckAnswer: () => void;
   onFinish: () => void;
-  onSkip: () => void;
   hearts: number | null;
 }) => {
-  const { question, answers, correctAnswer } = problem;
-
   return (
-    <div className="flex min-h-screen flex-col gap-5 px-4 py-5 sm:px-0 sm:py-0">
-      <div className="flex grow flex-col items-center gap-5">
-        <div className="w-full max-w-5xl sm:mt-8 sm:px-5">
-          <ProgressBar
-            correctAnswerCount={correctAnswerCount}
-            totalCorrectAnswersNeeded={totalCorrectAnswersNeeded}
-            setQuitMessageShown={setQuitMessageShown}
-            hearts={hearts}
-          />
+    <LessonShell
+      lessonStep={lessonStep}
+      totalSteps={totalSteps}
+      quitMessageShown={quitMessageShown}
+      setQuitMessageShown={setQuitMessageShown}
+      hearts={hearts}
+      footer={
+        <MakerCheckAnswer
+          correctFeedback={quiz.correctFeedback}
+          incorrectFeedback={quiz.incorrectFeedback}
+          correctAnswerShown={correctAnswerShown}
+          isAnswerCorrect={isAnswerCorrect}
+          isAnswerSelected={selectedAnswer !== null}
+          onCheckAnswer={onCheckAnswer}
+          onFinish={onFinish}
+        />
+      }
+    >
+      <section className="flex max-w-2xl grow flex-col gap-5 self-center sm:items-center sm:justify-center sm:gap-16 sm:px-5">
+        <h1 className="self-start text-2xl font-bold text-gray-800 sm:text-3xl">
+          {quiz.question}
+        </h1>
+        <div
+          className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2"
+          role="radiogroup"
+        >
+          {quiz.options.map((answer) => {
+            return (
+              <button
+                key={answer}
+                className={
+                  answer === selectedAnswer
+                    ? "cursor-pointer rounded-xl border-2 border-b-4 border-[#00838f] bg-cyan-50 p-5 text-left text-xl font-bold text-[#00838f]"
+                    : "cursor-pointer rounded-xl border-2 border-b-4 border-gray-200 p-5 text-left text-xl font-bold text-gray-700 hover:bg-gray-100"
+                }
+                role="radio"
+                aria-checked={answer === selectedAnswer}
+                onClick={() => {
+                  if (!correctAnswerShown) {
+                    setSelectedAnswer(answer);
+                  }
+                }}
+              >
+                {answer}
+              </button>
+            );
+          })}
         </div>
-        <section className="flex max-w-2xl grow flex-col gap-5 self-center sm:items-center sm:justify-center sm:gap-24 sm:px-5">
-          <h1 className="self-start text-2xl font-bold sm:text-3xl">
-            {question}
-          </h1>
-          <div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-            role="radiogroup"
-          >
-            {answers.map((answer, i) => {
-              return (
-                <div
-                  key={i}
-                  className={
-                    i === selectedAnswer
-                      ? "cursor-pointer rounded-xl border-2 border-b-4 border-blue-300 bg-blue-100 p-4 text-blue-400"
-                      : "cursor-pointer rounded-xl border-2 border-b-4 border-gray-200 p-4 hover:bg-gray-100"
-                  }
-                  role="radio"
-                  aria-checked={i === selectedAnswer}
-                  tabIndex={0}
-                  onClick={() => setSelectedAnswer(i)}
-                >
-                  {answer.icon}
-                  <h2 className="text-center">{answer.name}</h2>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      <CheckAnswer
-        correctAnswer={answers[correctAnswer].name}
-        correctAnswerShown={correctAnswerShown}
-        isAnswerCorrect={isAnswerCorrect}
-        isAnswerSelected={selectedAnswer !== null}
-        onCheckAnswer={onCheckAnswer}
-        onFinish={onFinish}
-        onSkip={onSkip}
-      />
-
-      <QuitMessage
-        quitMessageShown={quitMessageShown}
-        setQuitMessageShown={setQuitMessageShown}
-      />
-    </div>
-  );
-};
-
-const ProblemWriteInEnglish = ({
-  problem,
-  correctAnswerCount,
-  totalCorrectAnswersNeeded,
-  selectedAnswers,
-  setSelectedAnswers,
-  quitMessageShown,
-  correctAnswerShown,
-  setQuitMessageShown,
-  isAnswerCorrect,
-  onCheckAnswer,
-  onFinish,
-  onSkip,
-  hearts,
-}: {
-  problem: typeof lessonProblem2;
-  correctAnswerCount: number;
-  totalCorrectAnswersNeeded: number;
-  selectedAnswers: number[];
-  setSelectedAnswers: React.Dispatch<React.SetStateAction<number[]>>;
-  correctAnswerShown: boolean;
-  quitMessageShown: boolean;
-  setQuitMessageShown: React.Dispatch<React.SetStateAction<boolean>>;
-  isAnswerCorrect: boolean;
-  onCheckAnswer: () => void;
-  onFinish: () => void;
-  onSkip: () => void;
-  hearts: number | null;
-}) => {
-  const { question, correctAnswer, answerTiles } = problem;
-
-  return (
-    <div className="flex min-h-screen flex-col gap-5 px-4 py-5 sm:px-0 sm:py-0">
-      <div className="flex grow flex-col items-center gap-5">
-        <div className="w-full max-w-5xl sm:mt-8 sm:px-5">
-          <ProgressBar
-            correctAnswerCount={correctAnswerCount}
-            totalCorrectAnswersNeeded={totalCorrectAnswersNeeded}
-            setQuitMessageShown={setQuitMessageShown}
-            hearts={hearts}
-          />
-        </div>
-        <section className="flex max-w-2xl grow flex-col gap-5 self-center sm:items-center sm:justify-center sm:gap-24">
-          <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
-            Write this in English
-          </h1>
-
-          <div className="w-full">
-            <div className="flex items-center gap-2 px-2">
-              <Image src={womanPng} alt="" width={92} height={115} />
-              <div className="relative ml-2 w-fit rounded-2xl border-2 border-gray-200 p-4">
-                {question}
-                <div
-                  className="absolute h-4 w-4 rotate-45 border-b-2 border-l-2 border-gray-200 bg-white"
-                  style={{
-                    top: "calc(50% - 8px)",
-                    left: "-10px",
-                  }}
-                ></div>
-              </div>
-            </div>
-
-            <div className="flex min-h-[60px] flex-wrap gap-1 border-b-2 border-t-2 border-gray-200 py-1">
-              {selectedAnswers.map((i) => {
-                return (
-                  <button
-                    key={i}
-                    className="rounded-2xl border-2 border-b-4 border-gray-200 p-2 text-gray-700"
-                    onClick={() => {
-                      setSelectedAnswers((selectedAnswers) => {
-                        return selectedAnswers.filter((x) => x !== i);
-                      });
-                    }}
-                  >
-                    {answerTiles[i]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex flex-wrap justify-center gap-1">
-            {answerTiles.map((answerTile, i) => {
-              return (
-                <button
-                  key={i}
-                  className={
-                    selectedAnswers.includes(i)
-                      ? "rounded-2xl border-2 border-b-4 border-gray-200 bg-gray-200 p-2 text-gray-200"
-                      : "rounded-2xl border-2 border-b-4 border-gray-200 p-2 text-gray-700"
-                  }
-                  disabled={selectedAnswers.includes(i)}
-                  onClick={() =>
-                    setSelectedAnswers((selectedAnswers) => {
-                      if (selectedAnswers.includes(i)) {
-                        return selectedAnswers;
-                      }
-                      return [...selectedAnswers, i];
-                    })
-                  }
-                >
-                  {answerTile}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      <CheckAnswer
-        correctAnswer={correctAnswer.map((i) => answerTiles[i]).join(" ")}
-        correctAnswerShown={correctAnswerShown}
-        isAnswerCorrect={isAnswerCorrect}
-        isAnswerSelected={selectedAnswers.length > 0}
-        onCheckAnswer={onCheckAnswer}
-        onFinish={onFinish}
-        onSkip={onSkip}
-      />
-
-      <QuitMessage
-        quitMessageShown={quitMessageShown}
-        setQuitMessageShown={setQuitMessageShown}
-      />
-    </div>
+      </section>
+    </LessonShell>
   );
 };
 
 const LessonComplete = ({
   correctAnswerCount,
   incorrectAnswerCount,
+  xpAward,
   startTime,
   endTime,
   reviewLessonShown,
   setReviewLessonShown,
   questionResults,
+  pathId,
 }: {
   correctAnswerCount: number;
   incorrectAnswerCount: number;
+  xpAward: number;
   startTime: React.MutableRefObject<number>;
   endTime: React.MutableRefObject<number>;
   reviewLessonShown: boolean;
   setReviewLessonShown: React.Dispatch<React.SetStateAction<boolean>>;
   questionResults: QuestionResult[];
+  pathId: LearningPathId;
 }) => {
   const router = useRouter();
   const isPractice = "practice" in router.query;
 
   const increaseXp = useBoundStore((x) => x.increaseXp);
+  const supabaseUserId = useBoundStore((x) => x.supabaseUserId);
+  const lessonsCompletedForPath = useBoundStore(
+    (x) => x.lessonsCompletedForPath,
+  );
   const addToday = useBoundStore((x) => x.addToday);
-  const increaseLingots = useBoundStore((x) => x.increaseLingots);
+  const increaseTeslas = useBoundStore((x) => x.increaseTeslas);
   const increaseLessonsCompleted = useBoundStore(
     (x) => x.increaseLessonsCompleted,
   );
   return (
     <div className="flex min-h-screen flex-col gap-5 px-4 py-5 sm:px-0 sm:py-0">
       <div className="flex grow flex-col items-center justify-center gap-8 font-bold">
-        <h1 className="text-center text-3xl text-yellow-400">
-          Lesson Complete!
-        </h1>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="text-6xl">🤖</div>
+          <h1 className="text-3xl text-yellow-400">¡Kit reconocido!</h1>
+          <p className="max-w-xl text-lg text-gray-500">
+            Ya conoces las piezas básicas. Ahora estás listo para empezar a
+            construir.
+          </p>
+        </div>
         <div className="flex flex-wrap justify-center gap-5">
           <div className="min-w-[110px] rounded-xl border-2 border-yellow-400 bg-yellow-400">
-            <h2 className="py-1 text-center text-white">Total XP</h2>
+            <h2 className="py-1 text-center text-white">XP</h2>
             <div className="flex justify-center rounded-xl bg-white py-4 text-yellow-400">
-              {correctAnswerCount}
+              +{xpAward}
             </div>
           </div>
-          <div className="min-w-[110px] rounded-xl border-2 border-blue-400 bg-blue-400">
-            <h2 className="py-1 text-center text-white">Committed</h2>
-            <div className="flex justify-center rounded-xl bg-white py-4 text-blue-400">
+          <div className="min-w-[110px] rounded-xl border-2 border-[#00acc1] bg-[#00acc1]">
+            <h2 className="py-1 text-center text-white">Tiempo</h2>
+            <div className="flex justify-center rounded-xl bg-white py-4 text-[#00838f]">
               {formatTime(endTime.current - startTime.current)}
             </div>
           </div>
           <div className="min-w-[110px] rounded-xl border-2 border-green-400 bg-green-400">
-            <h2 className="py-1 text-center text-white">Amazing</h2>
+            <h2 className="py-1 text-center text-white">Acierto</h2>
             <div className="flex justify-center rounded-xl bg-white py-4 text-green-400">
               {Math.round(
                 (correctAnswerCount /
@@ -709,23 +898,34 @@ const LessonComplete = ({
             className="hidden rounded-2xl border-2 border-b-4 border-gray-200 bg-white p-3 font-bold uppercase text-gray-400 transition hover:border-gray-300 hover:bg-gray-200 sm:block sm:min-w-[150px] sm:max-w-fit"
             onClick={() => setReviewLessonShown(true)}
           >
-            Review lesson
+            Revisar lección
           </button>
           <Link
             className={
               "flex w-full items-center justify-center rounded-2xl border-b-4 border-green-600 bg-green-500 p-3 font-bold uppercase text-white transition hover:brightness-105 sm:min-w-[150px] sm:max-w-fit"
             }
-            href="/learn"
+            href={getLearnHref(pathId)}
             onClick={() => {
-              increaseXp(correctAnswerCount);
+              const nextCompletedLessons = isPractice
+                ? lessonsCompletedForPath(pathId)
+                : lessonsCompletedForPath(pathId) + 1;
+              increaseXp(xpAward);
               addToday();
-              increaseLingots(isPractice ? 0 : 1);
+              increaseTeslas(isPractice ? 0 : 1);
               if (!isPractice) {
-                increaseLessonsCompleted();
+                increaseLessonsCompleted(1, pathId);
+              }
+              if (supabaseUserId !== null) {
+                void saveLearningProgress({
+                  userId: supabaseUserId,
+                  pathId,
+                  completedLessons: nextCompletedLessons,
+                  xp: nextCompletedLessons * makerLessonXp,
+                });
               }
             }}
           >
-            Continue
+            Terminar lección
           </Link>
         </div>
       </section>
@@ -775,11 +975,11 @@ const ReviewLesson = ({
           onClick={() => setReviewLessonShown(false)}
         >
           <BigCloseSvg className="h-8 w-8" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">Cerrar</span>
         </button>
-        <h2 className="text-center text-3xl">Check out your scorecard!</h2>
+        <h2 className="text-center text-3xl">Revisa tus respuestas</h2>
         <p className="text-center text-xl text-gray-400">
-          Click the tiles below to reveal the solutions
+          Toca una tarjeta para comparar tu respuesta con la correcta.
         </p>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {questionResults.map((questionResult, i) => {
@@ -819,13 +1019,13 @@ const ReviewLesson = ({
                       style={{ left: "calc(50% - 6px)" }}
                     ></div>
                     <div className="font-bold uppercase text-gray-400">
-                      Your response:
+                      Tu respuesta:
                     </div>
                     <div className="mb-3 text-gray-700">
                       {questionResult.yourResponse}
                     </div>
                     <div className="font-bold uppercase text-gray-400">
-                      Correct response:
+                      Respuesta correcta:
                     </div>
                     <div className="text-gray-700">
                       {questionResult.correctResponse}
@@ -843,9 +1043,11 @@ const ReviewLesson = ({
 
 const LessonFastForwardStart = ({
   unitNumber,
+  pathId,
   setIsStartingLesson,
 }: {
   unitNumber: number;
+  pathId: LearningPathId;
   setIsStartingLesson: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
   return (
@@ -853,26 +1055,26 @@ const LessonFastForwardStart = ({
       <div className="flex grow flex-col items-center justify-center gap-5">
         <LessonFastForwardStartSvg />
         <h1 className="text-lg font-bold">
-          Want to jump to Unit {unitNumber}?
+          ¿Quieres saltar a la Unidad {unitNumber}?
         </h1>
         <p className="text-sm text-gray-400">
-          {`Pass the test to jump ahead. We won't make it easy for you though.`}
+          Supera la prueba para desbloquear esta parte de la ruta.
         </p>
       </div>
       <div className="flex flex-col gap-5"></div>
       <section className="border-gray-200 sm:border-t-2 sm:p-10">
         <div className="mx-auto flex max-w-5xl flex-col-reverse items-center gap-5 sm:flex-row sm:justify-between">
           <Link
-            href="/learn"
-            className="font-bold uppercase text-blue-400 transition hover:brightness-110"
+            href={getLearnHref(pathId)}
+            className="font-bold uppercase text-[#00acc1] transition hover:brightness-110"
           >
-            Maybe later
+            Tal vez después
           </Link>
           <button
-            className="w-full rounded-2xl border-b-4 border-blue-500 bg-blue-400 p-3 font-bold uppercase text-white transition hover:brightness-110 sm:min-w-[150px] sm:max-w-fit"
+            className="w-full rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] p-3 font-bold uppercase text-white transition hover:brightness-110 sm:min-w-[150px] sm:max-w-fit"
             onClick={() => setIsStartingLesson(false)}
           >
-            {`Let's go`}
+            Vamos
           </button>
         </div>
       </section>
@@ -882,11 +1084,13 @@ const LessonFastForwardStart = ({
 
 const LessonFastForwardEndFail = ({
   unitNumber,
+  pathId,
   reviewLessonShown,
   setReviewLessonShown,
   questionResults,
 }: {
   unitNumber: number;
+  pathId: LearningPathId;
   reviewLessonShown: boolean;
   setReviewLessonShown: React.Dispatch<React.SetStateAction<boolean>>;
   questionResults: QuestionResult[];
@@ -896,10 +1100,10 @@ const LessonFastForwardEndFail = ({
       <div className="flex grow flex-col items-center justify-center gap-5">
         <LessonFastForwardEndFailSvg />
         <h1 className="text-2xl font-bold">
-          {`You didn't unlock Unit ${unitNumber}`}
+          No desbloqueaste la Unidad {unitNumber}
         </h1>
         <p className="text-lg text-gray-500">
-          {`Don't worry! Practice makes perfect.`}
+          Sigue practicando y vuelve a intentarlo.
         </p>
       </div>
       <section className="border-gray-200 sm:border-t-2 sm:p-10">
@@ -908,13 +1112,13 @@ const LessonFastForwardEndFail = ({
             className="hidden rounded-2xl border-2 border-b-4 border-gray-200 bg-white p-3 font-bold uppercase text-gray-400 transition hover:border-gray-300 hover:bg-gray-200 sm:block sm:min-w-[150px] sm:max-w-fit"
             onClick={() => setReviewLessonShown(true)}
           >
-            Review lesson
+            Revisar lección
           </button>
           <Link
             className="flex w-full items-center justify-center rounded-2xl border-b-4 border-green-600 bg-green-500 p-3 font-bold uppercase text-white transition hover:brightness-105 sm:min-w-[150px] sm:max-w-fit"
-            href="/learn"
+            href={getLearnHref(pathId)}
           >
-            Continue
+            Continuar
           </Link>
         </div>
       </section>
@@ -929,11 +1133,13 @@ const LessonFastForwardEndFail = ({
 
 const LessonFastForwardEndPass = ({
   unitNumber,
+  pathId,
   reviewLessonShown,
   setReviewLessonShown,
   questionResults,
 }: {
   unitNumber: number;
+  pathId: LearningPathId;
   reviewLessonShown: boolean;
   setReviewLessonShown: React.Dispatch<React.SetStateAction<boolean>>;
   questionResults: QuestionResult[];
@@ -943,9 +1149,11 @@ const LessonFastForwardEndPass = ({
     <div className="flex min-h-screen flex-col px-5 py-8 text-center">
       <div className="flex grow flex-col items-center justify-center gap-5">
         <LessonFastForwardEndPassSvg />
-        <h1 className="text-2xl font-bold">You unlocked Unit {unitNumber}!</h1>
+        <h1 className="text-2xl font-bold">
+          ¡Desbloqueaste la Unidad {unitNumber}!
+        </h1>
         <p className="text-lg text-gray-500">
-          Way to go! You’re making great strides!
+          Buen trabajo. Tu ruta maker avanza.
         </p>
       </div>
       <section className="border-gray-200 sm:border-t-2 sm:p-10">
@@ -954,14 +1162,14 @@ const LessonFastForwardEndPass = ({
             className="hidden rounded-2xl border-2 border-b-4 border-gray-200 bg-white p-3 font-bold uppercase text-gray-400 transition hover:border-gray-300 hover:bg-gray-200 sm:block sm:min-w-[150px] sm:max-w-fit"
             onClick={() => setReviewLessonShown(true)}
           >
-            Review lesson
+            Revisar lección
           </button>
           <Link
             className="flex w-full items-center justify-center rounded-2xl border-b-4 border-green-600 bg-green-500 p-3 font-bold uppercase text-white transition hover:brightness-105 sm:min-w-[150px] sm:max-w-fit"
-            href="/learn"
-            onClick={() => jumpToUnit(unitNumber)}
+            href={getLearnHref(pathId)}
+            onClick={() => jumpToUnit(unitNumber, pathId)}
           >
-            Continue
+            Continuar
           </Link>
         </div>
       </section>

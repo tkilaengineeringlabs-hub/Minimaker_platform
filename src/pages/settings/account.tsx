@@ -16,8 +16,8 @@ const Account: NextPage = () => {
   const [localUsername, setLocalUsername] = useState(username);
 
   const accountOptions = [
-    { title: "Name", value: localName, setValue: setLocalName },
-    { title: "Username", value: localUsername, setValue: setLocalUsername },
+    { title: "Nombre", value: localName, setValue: setLocalName },
+    { title: "Usuario", value: localUsername, setValue: setLocalUsername },
   ];
 
   return (
@@ -28,7 +28,7 @@ const Account: NextPage = () => {
       <div className="mx-auto flex flex-col gap-5 px-4 py-20 sm:py-10 md:pl-28 lg:pl-72">
         <div className="mx-auto flex w-full max-w-xl items-center justify-between lg:max-w-4xl">
           <h1 className="text-lg font-bold text-gray-800 sm:text-2xl">
-            Account
+            Cuenta
           </h1>
           <button
             className="rounded-2xl border-b-4 border-green-600 bg-green-500 px-5 py-3 font-bold uppercase text-white transition hover:brightness-110 disabled:border-b-0 disabled:bg-gray-200 disabled:text-gray-400 disabled:hover:brightness-100"
@@ -38,7 +38,7 @@ const Account: NextPage = () => {
             }}
             disabled={name === localName && username === localUsername}
           >
-            Save changes
+            Guardar cambios
           </button>
         </div>
         <div className="flex justify-center gap-12">
@@ -59,7 +59,7 @@ const Account: NextPage = () => {
               );
             })}
           </div>
-          <SettingsRightNav selectedTab="Account" />
+          <SettingsRightNav selectedTab="Cuenta" />
         </div>
       </div>
     </div>

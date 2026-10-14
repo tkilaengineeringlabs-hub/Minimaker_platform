@@ -4,6 +4,13 @@ import type { ComponentProps } from "react";
 import React, { useEffect, useRef, useState } from "react";
 import { useBoundStore } from "~/hooks/useBoundStore";
 import { useRouter } from "next/router";
+import { isSupabaseConfigured } from "~/lib/supabase";
+import {
+  signInWithEmail,
+  signInWithOAuthProvider,
+  signUpWithEmail,
+} from "~/services/authService";
+import type { UserRole } from "~/types/supabase";
 
 export const FacebookLogoSvg = (props: ComponentProps<"svg">) => {
   return (
@@ -78,8 +85,15 @@ export const LoginScreen = ({
   const setName = useBoundStore((x) => x.setName);
 
   const [ageTooltipShown, setAgeTooltipShown] = useState(false);
+  const [role, setRole] = useState<Exclude<UserRole, "school_admin">>(
+    "student",
+  );
+  const [authMessage, setAuthMessage] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   const nameInputRef = useRef<null | HTMLInputElement>(null);
+  const emailInputRef = useRef<null | HTMLInputElement>(null);
+  const passwordInputRef = useRef<null | HTMLInputElement>(null);
 
   useEffect(() => {
     if (loginScreenState !== "HIDDEN" && loggedIn) {
@@ -87,14 +101,65 @@ export const LoginScreen = ({
     }
   }, [loginScreenState, loggedIn, setLoginScreenState]);
 
-  const logInAndSetUserProperties = () => {
+  useEffect(() => {
+    if (router.query.role === "teacher") {
+      setRole("teacher");
+      return;
+    }
+
+    if (router.query.role === "student") {
+      setRole("student");
+    }
+  }, [router.query.role]);
+
+  const logInAndSetUserProperties = async () => {
+    setAuthMessage("");
     const name =
       nameInputRef.current?.value.trim() || Math.random().toString().slice(2);
     const username = name.replace(/ +/g, "-");
+    const email = emailInputRef.current?.value.trim() ?? "";
+    const password = passwordInputRef.current?.value ?? "";
+
+    if (isSupabaseConfigured && email.length > 0 && password.length > 0) {
+      setAuthLoading(true);
+      const result =
+        loginScreenState === "LOGIN"
+          ? await signInWithEmail({ email, password })
+          : await signUpWithEmail({
+              email,
+              password,
+              displayName: name === "" ? email.split("@")[0] ?? "Maker" : name,
+              role,
+            });
+      setAuthLoading(false);
+
+      if (!result.ok) {
+        setAuthMessage(result.message);
+        return;
+      }
+
+      void router.push(role === "teacher" ? "/teacher" : "/learn");
+      return;
+    }
+
     setUsername(username);
     setName(name);
     logIn();
-    void router.push("/learn");
+    void router.push(role === "teacher" ? "/teacher" : "/learn");
+  };
+
+  const continueWithOAuth = async (provider: "google" | "facebook") => {
+    setAuthMessage("");
+
+    if (!isSupabaseConfigured) {
+      setAuthMessage("Configura Supabase para usar este proveedor.");
+      return;
+    }
+
+    const result = await signInWithOAuthProvider(provider);
+    if (!result.ok) {
+      setAuthMessage(result.message);
+    }
   };
 
   return (
@@ -113,29 +178,52 @@ export const LoginScreen = ({
           onClick={() => setLoginScreenState("HIDDEN")}
         >
           <CloseSvg />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">Cerrar</span>
         </button>
-        <button
-          className="hidden rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 text-sm font-bold uppercase text-blue-400 transition hover:bg-gray-50 hover:brightness-90 sm:block"
-          onClick={() =>
-            setLoginScreenState((x) => (x === "LOGIN" ? "SIGNUP" : "LOGIN"))
-          }
-        >
-          {loginScreenState === "LOGIN" ? "Sign up" : "Login"}
+          <button
+            className="hidden rounded-2xl border-2 border-b-4 border-gray-200 px-4 py-3 text-sm font-bold uppercase text-[#00acc1] transition hover:bg-gray-50 hover:brightness-90 sm:block"
+            onClick={() =>
+              setLoginScreenState((x) => (x === "LOGIN" ? "SIGNUP" : "LOGIN"))
+            }
+          >
+          {loginScreenState === "LOGIN" ? "Crear cuenta" : "Iniciar sesión"}
         </button>
       </header>
       <div className="flex grow items-center justify-center">
         <div className="flex w-full flex-col gap-5 sm:w-96">
           <h2 className="text-center text-2xl font-bold text-gray-800">
-            {loginScreenState === "LOGIN" ? "Log in" : "Create your profile"}
+            {loginScreenState === "LOGIN"
+              ? "Bienvenido de nuevo"
+              : "Crear perfil Maker"}
           </h2>
           <div className="flex flex-col gap-2 text-black">
             {loginScreenState === "SIGNUP" && (
               <>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Alumno", value: "student" },
+                    { label: "Profesor", value: "teacher" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      className={[
+                        "rounded-2xl border-2 border-b-4 px-4 py-3 font-bold",
+                        role === option.value
+                          ? "border-[#00838f] bg-[#00acc1] text-white"
+                          : "border-gray-200 bg-gray-50 text-gray-500",
+                      ].join(" ")}
+                      onClick={() =>
+                        setRole(option.value as Exclude<UserRole, "school_admin">)
+                      }
+                    >
+                      Soy {option.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="relative flex grow">
                   <input
                     className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
-                    placeholder="Age (optional)"
+                    placeholder="Edad (opcional)"
                   />
                   <div className="absolute bottom-0 right-0 top-0 flex items-center justify-center pr-4">
                     <div
@@ -145,28 +233,21 @@ export const LoginScreen = ({
                       onClick={() => setAgeTooltipShown((x) => !x)}
                       role="button"
                       tabIndex={0}
-                      aria-label="Why do you need an age?"
+                      aria-label="¿Por qué pedimos la edad?"
                     >
                       ?
                       {ageTooltipShown && (
                         <div className="absolute -right-5 top-full z-10 w-72 rounded-2xl border-2 border-gray-200 bg-white p-4 text-center text-xs leading-5 text-gray-800">
-                          Providing your age ensures you get the right Duolingo
-                          experience. For more details, please visit our{" "}
-                          <Link
-                            href="https://www.duolingo.com/privacy"
-                            className="text-blue-700"
-                          >
-                            Privacy Policy
-                          </Link>
+                          La edad ayuda a preparar actividades Maker adecuadas.
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
                 <input
-                  className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
-                  placeholder="Name (optional)"
-                  ref={nameInputRef}
+                    className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
+                    placeholder="Nombre"
+                    ref={nameInputRef}
                 />
               </>
             )}
@@ -174,15 +255,17 @@ export const LoginScreen = ({
               className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
               placeholder={
                 loginScreenState === "LOGIN"
-                  ? "Email or username (optional)"
-                  : "Email (optional)"
+                  ? "Correo electrónico"
+                  : "Correo electrónico"
               }
+              ref={emailInputRef}
             />
             <div className="relative flex grow">
               <input
                 className="grow rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3"
-                placeholder="Password (optional)"
+                placeholder="Contraseña"
                 type="password"
+                ref={passwordInputRef}
               />
               {loginScreenState === "LOGIN" && (
                 <div className="absolute bottom-0 right-0 top-0 flex items-center justify-center pr-5">
@@ -190,76 +273,64 @@ export const LoginScreen = ({
                     className="font-bold uppercase text-gray-400 hover:brightness-75"
                     href="/forgot-password"
                   >
-                    Forgot?
+                    ¿Olvidaste tu contraseña?
                   </Link>
                 </div>
               )}
             </div>
           </div>
+          {authMessage !== "" && (
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-500">
+              {authMessage}
+            </div>
+          )}
           <button
-            className="rounded-2xl border-b-4 border-blue-500 bg-blue-400 py-3 font-bold uppercase text-white transition hover:brightness-110"
-            onClick={logInAndSetUserProperties}
+            className="rounded-2xl border-b-4 border-[#00838f] bg-[#00acc1] py-3 font-bold uppercase text-white transition hover:brightness-110"
+            onClick={() => void logInAndSetUserProperties()}
+            disabled={authLoading}
           >
-            {loginScreenState === "LOGIN" ? "Log in" : "Create account"}
+            {authLoading
+              ? "Cargando..."
+              : loginScreenState === "LOGIN"
+              ? "Iniciar sesión"
+              : "Crear cuenta"}
           </button>
           <div className="flex items-center gap-2">
             <div className="h-[2px] grow bg-gray-300"></div>
-            <span className="font-bold uppercase text-gray-400">or</span>
+            <span className="font-bold uppercase text-gray-400">
+              Correo electrónico
+            </span>
             <div className="h-[2px] grow bg-gray-300"></div>
           </div>
-          <div className="flex gap-5">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-b-4 border-gray-200 py-3 font-bold text-blue-900 transition hover:bg-gray-50 hover:brightness-90"
-              onClick={logInAndSetUserProperties}
+              onClick={() => void continueWithOAuth("facebook")}
             >
-              <FacebookLogoSvg className="h-5 w-5" /> Facebook
+              <FacebookLogoSvg className="h-5 w-5" />{" "}
+              {loginScreenState === "LOGIN"
+                ? "Continuar con Facebook"
+                : "Registrarme con Facebook"}
             </button>
             <button
               className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-b-4 border-gray-200 py-3 font-bold text-blue-600 transition hover:bg-gray-50 hover:brightness-90"
-              onClick={logInAndSetUserProperties}
+              onClick={() => void continueWithOAuth("google")}
             >
-              <GoogleLogoSvg className="h-5 w-5" /> Google
+              <GoogleLogoSvg className="h-5 w-5" />{" "}
+              {loginScreenState === "LOGIN"
+                ? "Continuar con Google"
+                : "Registrarme con Google"}
             </button>
           </div>
           <p className="text-center text-xs leading-5 text-gray-400">
-            By signing in to Duolingo, you agree to our{" "}
-            <Link
-              className="font-bold"
-              href="https://www.duolingo.com/terms?wantsPlainInfo=1"
-            >
-              Terms
-            </Link>{" "}
-            and{" "}
-            <Link
-              className="font-bold"
-              href="https://www.duolingo.com/privacy?wantsPlainInfo=1"
-            >
-              Privacy Policy
-            </Link>
-            .
-          </p>
-          <p className="text-center text-xs leading-5 text-gray-400">
-            This site is protected by reCAPTCHA Enterprise and the Google{" "}
-            <Link
-              className="font-bold"
-              href="https://policies.google.com/privacy"
-            >
-              Privacy Policy
-            </Link>{" "}
-            and{" "}
-            <Link
-              className="font-bold"
-              href="https://policies.google.com/terms"
-            >
-              Terms of Service
-            </Link>{" "}
-            apply.
+            Si Supabase no está configurado, este formulario usa modo local de
+            desarrollo.
           </p>
           <p className="block text-center sm:hidden">
             <span className="text-sm font-bold text-gray-700">
               {loginScreenState === "LOGIN"
-                ? "Don't have an account?"
-                : "Have an account?"}
+                ? "¿Aún no tienes cuenta?"
+                : "¿Ya tienes una cuenta?"}
             </span>{" "}
             <button
               className="text-sm font-bold uppercase text-blue-400"
@@ -267,7 +338,7 @@ export const LoginScreen = ({
                 setLoginScreenState((x) => (x === "LOGIN" ? "SIGNUP" : "LOGIN"))
               }
             >
-              {loginScreenState === "LOGIN" ? "sign up" : "log in"}
+              {loginScreenState === "LOGIN" ? "Crear cuenta" : "Iniciar sesión"}
             </button>
           </p>
         </div>

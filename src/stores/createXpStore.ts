@@ -24,6 +24,7 @@ type XpByDate = Record<DateString, number>;
 export type XpSlice = {
   xpByDate: XpByDate;
   increaseXp: (by: number) => void;
+  setTotalXp: (xp: number) => void;
   xpToday: () => number;
   xpThisWeek: () => number;
 };
@@ -31,6 +32,8 @@ export type XpSlice = {
 export const createXpSlice: BoundStateCreator<XpSlice> = (set, get) => ({
   xpByDate: {},
   increaseXp: (by: number) => set({ xpByDate: addXpToday(get().xpByDate, by) }),
+  setTotalXp: (xp: number) =>
+    set({ xpByDate: { [toDateString(dayjs())]: Math.max(0, xp) } }),
   xpToday: () => xpAt(get().xpByDate, dayjs()),
   xpThisWeek: () => {
     return sum(

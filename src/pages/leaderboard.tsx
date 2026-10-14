@@ -17,19 +17,19 @@ import {
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useLeaderboardUsers } from "~/hooks/useLeaderboard";
-import Image from "next/image";
 
 const LeaderboardExplanationSection = () => {
   return (
     <article className="relative hidden h-fit w-96 shrink-0 gap-5 rounded-2xl border-2 border-gray-200 p-6 xl:flex">
       <div className="flex flex-col gap-5">
         <h2 className="font-bold uppercase text-gray-400">
-          What are leaderboards?
+          ¿Qué es la clasificación?
         </h2>
-        <p className="font-bold text-gray-700">Do lessons. Earn XP. Compete.</p>
+        <p className="font-bold text-gray-700">
+          Haz lecciones. Gana XP. Compite.
+        </p>
         <p className="text-gray-400">
-          Earn XP through lessons, then compete with players in a weekly
-          leaderboard
+          Gana XP con tus lecciones y compite cada semana con otros Makers.
         </p>
       </div>
 
@@ -56,17 +56,18 @@ const timeUntilStartOfWeek = (units: TimeLeftUnit): number => {
   return startOfWeek.diff(dayjs(), units);
 };
 
-const timeLeft = (): `${number} ${TimeLeftUnit}` => {
+const timeLeft = (): string => {
   if (timeUntilStartOfWeek("days") > 0) {
-    return `${timeUntilStartOfWeek("days")} days`;
+    const days = timeUntilStartOfWeek("days");
+    return `${days} ${days === 1 ? "día" : "días"}`;
   }
   if (timeUntilStartOfWeek("hours") > 0) {
-    return `${timeUntilStartOfWeek("hours")} hours`;
+    const hours = timeUntilStartOfWeek("hours");
+    return `${hours} ${hours === 1 ? "hora" : "horas"}`;
   }
-  return `${timeUntilStartOfWeek("minutes")} minutes`;
+  const minutes = timeUntilStartOfWeek("minutes");
+  return `${minutes} ${minutes === 1 ? "minuto" : "minutos"}`;
 };
-
-const defaultPicture = "https://placekitten.com/100/100";
 
 const LeaderboardProfile = ({
   place,
@@ -98,13 +99,9 @@ const LeaderboardProfile = ({
             {place}
           </div>
         )}
-        <Image
-          width={48}
-          height={48}
-          className="h-12 w-12 rounded-full"
-          src={defaultPicture}
-          alt=""
-        />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-cyan-100 text-xl font-black text-[#00838f]">
+          {name.charAt(0).toUpperCase()}
+        </div>
       </div>
       <div className="grow overflow-hidden overflow-ellipsis font-bold">
         {name}
@@ -131,31 +128,37 @@ const Leaderboard: NextPage = () => {
     lessonsToUnlockLeaderboard - lessonsCompleted;
   const leaderboardIsUnlocked = lessonsCompleted >= lessonsToUnlockLeaderboard;
 
-  const leaderboardLeague = "Bronze League";
+  const leaderboardLeague = "Liga Bronce";
 
   const leaderboardUsers = useLeaderboardUsers();
 
   return (
     <div>
-      <LeftBar selectedTab="Leaderboards" />
+      <LeftBar selectedTab="CLASIFICACIÓN" />
       <div className="flex justify-center gap-3 pt-14 md:ml-24 md:p-6 md:pt-10 lg:ml-64 lg:gap-12">
         <div className="flex w-full max-w-xl flex-col items-center gap-5 pb-28 md:px-5">
           {!leaderboardIsUnlocked && (
             <>
               <LeaderboardBannerSvg />
               <h1 className="text-center text-2xl font-bold text-gray-700">
-                Unlock Leaderboards!
+                ¡Desbloquea la clasificación!
               </h1>
               <p className="text-center text-lg text-gray-500">
-                Complete {lessonsRemainingToUnlockLeaderboard} more lesson
-                {lessonsRemainingToUnlockLeaderboard === 1 ? "" : "s"} to start
-                competing
+                Completa 10 lecciones para comenzar a competir con otros
+                Makers.
+              </p>
+              <p className="text-center text-lg font-bold text-[#00acc1]">
+                Te faltan {lessonsRemainingToUnlockLeaderboard}{" "}
+                {lessonsRemainingToUnlockLeaderboard === 1
+                  ? "lección"
+                  : "lecciones"}
+                .
               </p>
               <Link
                 href="/lesson?practice"
                 className="w-fit rounded-2xl border-2 border-b-4 border-gray-200 px-16 py-2 text-center font-bold uppercase text-blue-400 transition hover:bg-gray-50 hover:brightness-90"
               >
-                Start a lesson
+                Empezar lección
               </Link>
               <div className="h-5"></div>
               <LockedLeaderboardSvg />
@@ -174,7 +177,7 @@ const Leaderboard: NextPage = () => {
                 <h1 className="text-2xl font-bold">{leaderboardLeague}</h1>
                 <div className="flex w-full flex-col items-center gap-1 pb-5">
                   <p className="text-lg text-gray-500">
-                    Top 20 advance to the next league
+                    Los primeros 20 avanzan a la siguiente liga.
                   </p>
                   <time className="font-bold text-yellow-400">
                     {timeLeft()}
@@ -200,7 +203,7 @@ const Leaderboard: NextPage = () => {
         </div>
         {!leaderboardIsUnlocked && <LeaderboardExplanationSection />}
       </div>
-      <BottomBar selectedTab="Leaderboards" />
+      <BottomBar selectedTab="CLASIFICACIÓN" />
     </div>
   );
 };
