@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useBoundStore } from "~/hooks/useBoundStore";
 import { isSupabaseConfigured } from "~/lib/supabase";
-import { readUnlockedKitIds } from "~/utils/kits";
+import { readUnlockedKitIds, type KitId } from "~/utils/kits";
 
-export const useUnlockedKits = () => {
+type UseUnlockedKitsResult = {
+  unlockedKitIds: ReadonlySet<KitId>;
+  unlockedKitIdsLoaded: boolean;
+  refreshLocalKits: () => void;
+};
+
+export const useUnlockedKits = (): UseUnlockedKitsResult => {
   const kitIds = useBoundStore((state) => state.unlockedKitIds);
   const authReady = useBoundStore((state) => state.authReady);
-  const [localKitIds, setLocalKitIds] = useState(readUnlockedKitIds);
-  const [localReady, setLocalReady] = useState(false);
+  const [localKitIds, setLocalKitIds] = useState<Set<KitId>>(() =>
+    readUnlockedKitIds(),
+  );
+  const [localReady, setLocalReady] = useState<boolean>(false);
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -15,8 +23,8 @@ export const useUnlockedKits = () => {
     setLocalReady(true);
   }, []);
 
-  const unlockedKitIds = useMemo(
-    () => (isSupabaseConfigured ? new Set(kitIds) : localKitIds),
+  const unlockedKitIds = useMemo<ReadonlySet<KitId>>(
+    () => (isSupabaseConfigured ? new Set<KitId>(kitIds) : localKitIds),
     [kitIds, localKitIds],
   );
 
