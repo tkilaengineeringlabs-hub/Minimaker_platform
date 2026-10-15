@@ -42,6 +42,57 @@
   }
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+  background: #081216;
+  color: #e8f5f6;
+}
+
+html[data-theme="dark"] .maker-sidebar {
+  border-color: #1c343c !important;
+  background: #0c1b21 !important;
+}
+
+html[data-theme="dark"] .maker-sidebar-link {
+  color: #a9bec4 !important;
+}
+
+html[data-theme="dark"] .maker-sidebar-link:hover {
+  background: #12303a !important;
+  color: #66edf1 !important;
+}
+
+html[data-theme="dark"] .maker-more-menu {
+  border-color: #5eeaf0 !important;
+  background: #0d1d23 !important;
+  color: #e7f6f7 !important;
+  box-shadow:
+    10px 10px 0 #071014,
+    0 18px 45px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-theme="dark"] .maker-more-menu section {
+  border-color: #20363e !important;
+}
+
+html[data-theme="dark"] .maker-more-menu h2,
+html[data-theme="dark"] .maker-more-menu h3 {
+  color: #b9d7dc !important;
+}
+
+html[data-theme="dark"] .maker-more-menu a,
+html[data-theme="dark"] .maker-more-menu button {
+  color: inherit;
+}
+
+html[data-theme="dark"] .maker-more-menu a:hover,
+html[data-theme="dark"] .maker-more-menu button:hover {
+  background: #12303a;
+}
+
 @keyframes makerPulse {
   0%,
   100% {
