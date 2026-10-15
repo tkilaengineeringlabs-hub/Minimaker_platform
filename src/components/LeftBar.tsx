@@ -87,7 +87,7 @@ export const LeftBar = ({ selectedTab }: { selectedTab: Tab | null }) => {
 
           <div
             className={[
-              "absolute bottom-0 left-[calc(100%+16px)] z-[80]",
+              "fixed bottom-4 z-[80] md:left-[88px] lg:left-[272px]",
               moreMenuShown ? "block" : "hidden",
             ].join(" ")}
           >
