@@ -80,13 +80,13 @@ export const MoreMenuPanel = ({ onRequestClose }: MoreMenuPanelProps) => {
         </div>
 
         <MenuGroup title="Mi espacio">
-          <MenuLink href="/profile" icon="ID" label="Perfil Maker" onClick={onRequestClose} />
-          <MenuLink href="/portfolio" icon="MX" label="Mi Portafolio Maker" onClick={onRequestClose} />
+          <MenuLink href="/profile" icon="🪪" label="Perfil Maker" onClick={onRequestClose} />
+          <MenuLink href="/portfolio" icon="🛠️" label="Mi Portafolio Maker" onClick={onRequestClose} />
         </MenuGroup>
 
         <MenuGroup title="Comunidad">
-          <MenuLink href={schoolHref} icon="ED" label="Escuelas Maker" onClick={onRequestClose} />
-          <MenuButton icon="EX" label="Explorar" onClick={() => setSoonModal("EXPLORE")} />
+          <MenuLink href={schoolHref} icon="🏫" label="Escuelas Maker" onClick={onRequestClose} />
+          <MenuButton icon="🧭" label="Explorar" onClick={() => setSoonModal("EXPLORE")} />
         </MenuGroup>
 
         <MenuGroup title="Apariencia">
@@ -107,8 +107,8 @@ export const MoreMenuPanel = ({ onRequestClose }: MoreMenuPanelProps) => {
         </MenuGroup>
 
         <MenuGroup title="Soporte">
-          <MenuLink href="/settings" icon="CF" label="Configuración" onClick={onRequestClose} />
-          <MenuButton icon="?" label="Centro de ayuda" onClick={() => setSoonModal("HELP")} />
+          <MenuLink href="/settings" icon="⚙️" label="Configuración" onClick={onRequestClose} />
+          <MenuButton icon="❓" label="Centro de ayuda" onClick={() => setSoonModal("HELP")} />
         </MenuGroup>
 
         <div className="mt-2 border-t-2 border-[#e8ecef] pt-2">
@@ -158,7 +158,7 @@ const menuItemClassName =
   "flex min-h-[48px] w-full items-center gap-3 rounded-xl border-2 border-transparent px-2 py-1.5 text-[14px] font-black tracking-[0.01em] text-[#394956] transition hover:border-[#55dce3] hover:bg-[#e7fbfb] hover:text-[#007d89] active:translate-y-[1px]";
 
 const MenuIcon = ({ icon }: { icon: string }) => (
-  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-2 border-[#cfd9df] bg-[#f4f7f8] text-[11px] font-black tracking-[0.08em] text-[#071014] shadow-[2px_2px_0_#d5dee5]">
+  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border-2 border-[#cfd9df] bg-[#f4f7f8] text-lg font-black text-[#071014] shadow-[2px_2px_0_#d5dee5]">
     {icon}
   </span>
 );
